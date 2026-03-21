@@ -2,10 +2,12 @@ export const dynamic = 'force-dynamic';
 
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { User, CheckCircle2, Clock, Share2, Landmark } from 'lucide-react';
+import { User, CheckCircle2, Clock, Landmark } from 'lucide-react';
 import { ProfileForm } from './profile-form';
 import { KycForm } from './kyc-form';
 import { BankAccounts } from './bank-accounts';
+import { ShareReferral } from '../referrals/share-button';
+import { MemberCard } from './member-card';
 
 interface Profile {
     id: string;
@@ -51,20 +53,18 @@ export default async function ProfilePage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-10 pb-24">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Account Identity</h1>
                     <p className="text-slate-500 font-medium mt-1">Manage your cooperative membership and payouts.</p>
                 </div>
                 
-                <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl border border-slate-800 flex items-center gap-4">
-                    <div className="p-2.5 bg-cyan-500 rounded-2xl shadow-lg shadow-cyan-500/20">
-                        <Share2 className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Referral Identity</p>
-                        <p className="text-xl font-black tracking-tighter text-cyan-400">{profile?.referral_code || '------'}</p>
-                    </div>
+                <div className="w-full md:w-auto">
+                    <MemberCard 
+                        name={profile?.full_name || 'Cooperative Member'} 
+                        status={status} 
+                        id={profile?.id || ''} 
+                    />
                 </div>
             </div>
 
@@ -133,16 +133,15 @@ export default async function ProfilePage() {
             {/* Referral Banner */}
             <div className="p-10 bg-cyan-900 text-white rounded-[3rem] shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500 rounded-full -mr-48 -mt-48 blur-3xl opacity-20 group-hover:opacity-30 transition-opacity" />
-                <div className="relative z-10 space-y-4">
-                    <h3 className="font-black text-3xl tracking-tight flex items-center gap-3">
-                        <Share2 className="w-8 h-8 text-cyan-400" /> Capitalize Your Network
-                    </h3>
-                    <p className="text-cyan-100 text-lg leading-relaxed font-medium max-w-2xl">
-                        Earn ₦500 instantly for every verified member you bring into the community. Your impact helps build a stronger cooperative purse for everyone.
-                    </p>
-                    <button className="bg-white text-cyan-900 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl hover:bg-cyan-50 transition-all active:scale-95">
-                        Copy Invite Link
-                    </button>
+                <div className="relative z-10 space-y-6">
+                    <div className="space-y-2">
+                        <h3 className="font-black text-3xl tracking-tight">Capitalize Your Network</h3>
+                        <p className="text-cyan-100 text-lg leading-relaxed font-medium max-w-2xl">
+                            Earn ₦500 instantly for every verified member you bring into the community.
+                        </p>
+                    </div>
+                    
+                    <ShareReferral code={profile?.referral_code || ''} />
                 </div>
             </div>
         </div>

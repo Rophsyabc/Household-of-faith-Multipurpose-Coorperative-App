@@ -1,5 +1,5 @@
 -- ==========================================
--- 1. CLEANUP
+-- 1. CLEANUP (Tables, Functions, Triggers)
 -- ==========================================
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
@@ -291,6 +291,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_profiles_modtime BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_wallets_modtime BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_bank_accounts_modtime BEFORE UPDATE ON bank_accounts FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_loans_modtime BEFORE UPDATE ON loans FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_savings_goals_modtime BEFORE UPDATE ON savings_goals FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_withdrawal_requests_modtime BEFORE UPDATE ON withdrawal_requests FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_support_tickets_modtime BEFORE UPDATE ON support_tickets FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_marketplace_items_modtime BEFORE UPDATE ON marketplace_items FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 -- ==========================================
 -- 4. RLS POLICIES
 -- ==========================================
@@ -343,10 +360,67 @@ CREATE POLICY "Marketplace items view all" ON marketplace_items FOR SELECT USING
 CREATE POLICY "Marketplace items manage own" ON marketplace_items FOR ALL USING (auth.uid() = seller_id);
 
 -- ==========================================
--- 5. REALTIME SETUP
+-- 5. PERFORMANCE INDEXES
+-- ==========================================
+
+CREATE INDEX idx_profiles_kyc_status ON profiles(kyc_status);
+CREATE INDEX idx_profiles_referral_code ON profiles(referral_code);
+CREATE INDEX idx_wallets_user_id ON wallets(user_id);
+CREATE INDEX idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX idx_transactions_type ON transactions(type);
+CREATE INDEX idx_ajo_members_group_id ON ajo_members(group_id);
+CREATE INDEX idx_ajo_ledger_group_cycle ON ajo_ledger(group_id, cycle_number);
+CREATE INDEX idx_loans_status ON loans(status);
+CREATE INDEX idx_withdrawal_requests_status ON withdrawal_requests(status);
+CREATE INDEX idx_support_tickets_status ON support_tickets(status);
+CREATE INDEX idx_marketplace_items_status ON marketplace_items(status);
+
+-- ==========================================
+-- 6. ANALYTICS VIEWS
+-- ==========================================
+
+CREATE OR REPLACE VIEW admin_stats AS
+SELECT 
+  (SELECT count(*) FROM profiles WHERE kyc_status = 'pending') as pending_kyc_count,
+  (SELECT count(*) FROM loans WHERE status = 'pending') as pending_loan_count,
+  (SELECT count(*) FROM withdrawal_requests WHERE status = 'pending') as pending_withdrawal_count,
+  (SELECT count(*) FROM support_tickets WHERE status = 'open') as open_tickets_count,
+  (SELECT COALESCE(sum(amount), 0) FROM transactions WHERE type IN ('credit', 'dividend', 'referral_bonus', 'loan', 'transfer_in')) as total_inflow,
+  (SELECT COALESCE(sum(amount), 0) FROM transactions WHERE type IN ('debit', 'transfer_out', 'fee', 'repayment')) as total_outflow,
+  (SELECT total_fees_collected FROM cooperative_treasury WHERE id = 1) as treasury_balance;
+
+-- ==========================================
+-- 7. REALTIME SETUP
 -- ==========================================
 
 DROP PUBLICATION IF EXISTS supabase_realtime;
 CREATE PUBLICATION supabase_realtime FOR TABLE 
   notifications, wallets, ajo_ledger, transactions, announcements, 
   support_tickets, marketplace_items, withdrawal_requests, loans;
+
+-- ==========================================
+-- 8. STORAGE BUCKETS & POLICIES
+-- ==========================================
+
+INSERT INTO storage.buckets (id, name, public) VALUES ('kyc-documents', 'kyc-documents', true) ON CONFLICT DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('marketplace-images', 'marketplace-images', true) ON CONFLICT DO NOTHING;
+
+-- Cleanup existing policies to avoid ERROR: 42710
+DO $$
+BEGIN
+    -- Drop KYC Policies
+    DROP POLICY IF EXISTS "Public Read KYC" ON storage.objects;
+    DROP POLICY IF EXISTS "Admin All KYC" ON storage.objects;
+    -- Drop Marketplace Policies
+    DROP POLICY IF EXISTS "Public Read Marketplace" ON storage.objects;
+    DROP POLICY IF EXISTS "Seller Upload Marketplace" ON storage.objects;
+    DROP POLICY IF EXISTS "Seller Manage Marketplace" ON storage.objects;
+END $$;
+
+-- Create Storage Policies
+CREATE POLICY "Public Read KYC" ON storage.objects FOR SELECT USING (bucket_id = 'kyc-documents');
+CREATE POLICY "Admin All KYC" ON storage.objects FOR ALL USING (bucket_id = 'kyc-documents' AND is_admin());
+
+CREATE POLICY "Public Read Marketplace" ON storage.objects FOR SELECT USING (bucket_id = 'marketplace-images');
+CREATE POLICY "Seller Upload Marketplace" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'marketplace-images' AND auth.role() = 'authenticated');
+CREATE POLICY "Seller Manage Marketplace" ON storage.objects FOR ALL USING (bucket_id = 'marketplace-images' AND auth.uid()::text = (storage.foldername(name))[1]);

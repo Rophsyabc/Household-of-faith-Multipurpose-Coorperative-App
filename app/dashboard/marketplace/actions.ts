@@ -33,47 +33,47 @@ export async function listItem(formData: FormData) {
     const category = formData.get('category') as string;
     const imageFile = formData.get('image') as File;
 
-    let imageUrl = null;
+    try {
+        let imageUrl = null;
+        if (imageFile && imageFile.size > 0) {
+            const ext = imageFile.name.split('.').pop();
+            const path = `${user.id}/${Date.now()}.${ext}`;
+            const { error: uploadError } = await adminSupabase.storage
+                .from('marketplace-images')
+                .upload(path, imageFile);
+            
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = adminSupabase.storage.from('marketplace-images').getPublicUrl(path);
+            imageUrl = publicUrl;
+        }
 
-    if (imageFile && imageFile.size > 0) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await adminSupabase.storage
-            .from('marketplace-images')
-            .upload(fileName, imageFile);
+        const { error } = await supabase.from('marketplace_items').insert({
+            seller_id: user.id,
+            title,
+            description,
+            price,
+            category,
+            image_url: imageUrl
+        });
 
-        if (uploadError) return { error: 'Image upload failed: ' + uploadError.message };
-        
-        const { data: { publicUrl } } = adminSupabase.storage.from('marketplace-images').getPublicUrl(fileName);
-        imageUrl = publicUrl;
+        if (error) throw error;
+
+        revalidatePath('/dashboard/marketplace');
+        return { success: true };
+    } catch (err: any) {
+        return { error: err.message || 'Failed to list item' };
     }
-
-    const { error } = await supabase.from('marketplace_items').insert({
-        seller_id: user.id,
-        title,
-        description,
-        price,
-        category,
-        image_url: imageUrl,
-        status: 'active'
-    });
-
-    if (error) return { error: error.message };
-    revalidatePath('/dashboard/marketplace');
-    return { success: true };
 }
 
 export async function markAsSold(itemId: string) {
     const supabase = await getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: 'Unauthorized' };
-
+    
     const { error } = await supabase
         .from('marketplace_items')
         .update({ status: 'sold' })
         .eq('id', itemId)
-        .eq('seller_id', user.id);
+        .eq('seller_id', user?.id);
 
     if (error) return { error: error.message };
     revalidatePath('/dashboard/marketplace');
