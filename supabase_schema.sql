@@ -1,5 +1,5 @@
 -- ==========================================
--- 1. CLEANUP (Tables, Functions, Triggers)
+-- 1. CLEANUP (Idempotency)
 -- ==========================================
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
@@ -84,7 +84,8 @@ CREATE TABLE ajo_groups (
   join_code TEXT,
   current_cycle INT DEFAULT 1,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE ajo_members (
@@ -178,7 +179,8 @@ CREATE TABLE announcements (
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   is_priority BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE dividend_payouts (
@@ -302,8 +304,10 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_profiles_modtime BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_wallets_modtime BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_bank_accounts_modtime BEFORE UPDATE ON bank_accounts FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_ajo_groups_modtime BEFORE UPDATE ON ajo_groups FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_loans_modtime BEFORE UPDATE ON loans FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_savings_goals_modtime BEFORE UPDATE ON savings_goals FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+CREATE TRIGGER update_announcements_modtime BEFORE UPDATE ON announcements FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_withdrawal_requests_modtime BEFORE UPDATE ON withdrawal_requests FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_support_tickets_modtime BEFORE UPDATE ON support_tickets FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 CREATE TRIGGER update_marketplace_items_modtime BEFORE UPDATE ON marketplace_items FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
@@ -324,6 +328,7 @@ ALTER TABLE cooperative_treasury ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dividend_payouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE withdrawal_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE referral_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
@@ -366,7 +371,6 @@ CREATE INDEX idx_profiles_kyc_status ON profiles(kyc_status);
 CREATE INDEX idx_profiles_referral_code ON profiles(referral_code);
 CREATE INDEX idx_wallets_user_id ON wallets(user_id);
 CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-CREATE INDEX idx_transactions_type ON transactions(type);
 CREATE INDEX idx_ajo_members_group_id ON ajo_members(group_id);
 CREATE INDEX idx_ajo_ledger_group_cycle ON ajo_ledger(group_id, cycle_number);
 CREATE INDEX idx_loans_status ON loans(status);
@@ -404,19 +408,15 @@ CREATE PUBLICATION supabase_realtime FOR TABLE
 INSERT INTO storage.buckets (id, name, public) VALUES ('kyc-documents', 'kyc-documents', true) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('marketplace-images', 'marketplace-images', true) ON CONFLICT DO NOTHING;
 
--- Cleanup existing policies to avoid ERROR: 42710
 DO $$
 BEGIN
-    -- Drop KYC Policies
     DROP POLICY IF EXISTS "Public Read KYC" ON storage.objects;
     DROP POLICY IF EXISTS "Admin All KYC" ON storage.objects;
-    -- Drop Marketplace Policies
     DROP POLICY IF EXISTS "Public Read Marketplace" ON storage.objects;
     DROP POLICY IF EXISTS "Seller Upload Marketplace" ON storage.objects;
     DROP POLICY IF EXISTS "Seller Manage Marketplace" ON storage.objects;
 END $$;
 
--- Create Storage Policies
 CREATE POLICY "Public Read KYC" ON storage.objects FOR SELECT USING (bucket_id = 'kyc-documents');
 CREATE POLICY "Admin All KYC" ON storage.objects FOR ALL USING (bucket_id = 'kyc-documents' AND is_admin());
 
