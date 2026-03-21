@@ -27,7 +27,6 @@ DROP TABLE IF EXISTS profiles CASCADE;
 -- 2. CORE TABLES
 -- ==========================================
 
--- Profiles Table
 CREATE TABLE profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
   full_name TEXT NOT NULL,
@@ -53,7 +52,6 @@ CREATE TABLE profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Wallets Table
 CREATE TABLE wallets (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE,
@@ -61,7 +59,6 @@ CREATE TABLE wallets (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Bank Accounts Table (For Withdrawals)
 CREATE TABLE bank_accounts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -75,7 +72,6 @@ CREATE TABLE bank_accounts (
   UNIQUE(user_id, account_number)
 );
 
--- Ajo Groups Table
 CREATE TABLE ajo_groups (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   creator_id UUID REFERENCES profiles(id),
@@ -91,7 +87,6 @@ CREATE TABLE ajo_groups (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Ajo Members Table
 CREATE TABLE ajo_members (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   group_id UUID REFERENCES ajo_groups(id) ON DELETE CASCADE,
@@ -101,7 +96,6 @@ CREATE TABLE ajo_members (
   UNIQUE(group_id, position)
 );
 
--- Ajo Ledger Table
 CREATE TABLE ajo_ledger (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   group_id UUID REFERENCES ajo_groups(id) ON DELETE CASCADE,
@@ -113,7 +107,6 @@ CREATE TABLE ajo_ledger (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Transactions Table
 CREATE TABLE transactions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -125,7 +118,6 @@ CREATE TABLE transactions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Notifications Table
 CREATE TABLE notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -135,7 +127,6 @@ CREATE TABLE notifications (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Treasury Table
 CREATE TABLE cooperative_treasury (
   id INT PRIMARY KEY DEFAULT 1,
   total_fees_collected NUMERIC DEFAULT 0.00,
@@ -146,7 +137,6 @@ CREATE TABLE cooperative_treasury (
 
 INSERT INTO cooperative_treasury (id) VALUES (1) ON CONFLICT DO NOTHING;
 
--- Loans Table
 CREATE TABLE loans (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -164,7 +154,6 @@ CREATE TABLE loans (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Savings Goals Table
 CREATE TABLE savings_goals (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -184,7 +173,6 @@ CREATE TABLE savings_goals (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Announcements Table
 CREATE TABLE announcements (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   title TEXT NOT NULL,
@@ -193,7 +181,6 @@ CREATE TABLE announcements (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Dividend Payouts Table
 CREATE TABLE dividend_payouts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   total_distributed NUMERIC NOT NULL,
@@ -202,7 +189,6 @@ CREATE TABLE dividend_payouts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Withdrawal Requests Table
 CREATE TABLE withdrawal_requests (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -215,7 +201,6 @@ CREATE TABLE withdrawal_requests (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Referral Ledger Table
 CREATE TABLE referral_ledger (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   referrer_id UUID REFERENCES profiles(id),
@@ -225,7 +210,6 @@ CREATE TABLE referral_ledger (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Support Tickets Table
 CREATE TABLE support_tickets (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -238,7 +222,6 @@ CREATE TABLE support_tickets (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Marketplace Items Table
 CREATE TABLE marketplace_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   seller_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -256,7 +239,6 @@ CREATE TABLE marketplace_items (
 -- 3. FUNCTIONS & TRIGGERS
 -- ==========================================
 
--- Function to handle new user creation
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -264,59 +246,33 @@ DECLARE
     referred_by_id UUID;
     is_first_user BOOLEAN;
 BEGIN
-  -- Generate unique referral code
   new_referral_code := upper(substring(md5(random()::text) from 1 for 8));
-  
-  -- Extract referral from metadata
   BEGIN
     referred_by_id := (new.raw_user_meta_data->>'referred_by')::UUID;
   EXCEPTION WHEN OTHERS THEN
     referred_by_id := NULL;
   END;
-
-  -- First user becomes admin
   SELECT count(*) = 0 INTO is_first_user FROM public.profiles;
-  
   INSERT INTO public.profiles (id, full_name, email, phone, referral_code, referred_by, is_admin)
-  VALUES (
-    new.id, 
-    COALESCE(new.raw_user_meta_data->>'full_name', 'Member'), 
-    new.email,
-    '',
-    new_referral_code, 
-    referred_by_id,
-    is_first_user
-  );
-
-  -- Create wallet for new user
+  VALUES (new.id, COALESCE(new.raw_user_meta_data->>'full_name', 'Member'), new.email, '', new_referral_code, referred_by_id, is_first_user);
   INSERT INTO public.wallets (user_id, balance) VALUES (new.id, 0);
-
-  -- Log referral if exists
   IF referred_by_id IS NOT NULL THEN
-    INSERT INTO public.referral_ledger (referrer_id, referred_id)
-    VALUES (referred_by_id, new.id);
+    INSERT INTO public.referral_ledger (referrer_id, referred_id) VALUES (referred_by_id, new.id);
   END IF;
-
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger for new user
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
--- Admin check function
 CREATE OR REPLACE FUNCTION is_admin() RETURNS BOOLEAN AS $$
-DECLARE
-  adm BOOLEAN;
+DECLARE adm BOOLEAN;
 BEGIN
   SELECT is_admin INTO adm FROM profiles WHERE id = auth.uid();
   RETURN COALESCE(adm, FALSE);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Helper functions for financial operations
 CREATE OR REPLACE FUNCTION increment_cycle(group_id_param UUID) RETURNS VOID AS $$
 BEGIN
   UPDATE ajo_groups SET current_cycle = current_cycle + 1 WHERE id = group_id_param;
@@ -334,25 +290,6 @@ BEGIN
   UPDATE cooperative_treasury SET total_fines_collected = total_fines_collected + fine_amount WHERE id = 1;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Trigger to update updated_at timestamp
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Apply updated_at trigger to relevant tables
-CREATE TRIGGER update_profiles_modtime BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_wallets_modtime BEFORE UPDATE ON wallets FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_bank_accounts_modtime BEFORE UPDATE ON bank_accounts FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_loans_modtime BEFORE UPDATE ON loans FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_savings_goals_modtime BEFORE UPDATE ON savings_goals FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_withdrawal_requests_modtime BEFORE UPDATE ON withdrawal_requests FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_support_tickets_modtime BEFORE UPDATE ON support_tickets FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_marketplace_items_modtime BEFORE UPDATE ON marketplace_items FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- ==========================================
 -- 4. RLS POLICIES
@@ -376,55 +313,32 @@ ALTER TABLE referral_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE marketplace_items ENABLE ROW LEVEL SECURITY;
 
--- Policies for Profiles
 CREATE POLICY "Profiles viewable" ON profiles FOR SELECT USING (true);
 CREATE POLICY "Profiles update own" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Admins manage profiles" ON profiles FOR ALL USING (is_admin());
-
--- Policies for Wallets
 CREATE POLICY "Wallets view own" ON wallets FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Admins view wallets" ON wallets FOR SELECT USING (is_admin());
-
--- Policies for Bank Accounts
 CREATE POLICY "Bank accounts manage own" ON bank_accounts FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Admins view bank accounts" ON bank_accounts FOR SELECT USING (is_admin());
-
--- Policies for Ajo
 CREATE POLICY "Groups view authenticated" ON ajo_groups FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Members join authenticated" ON ajo_members FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Ledger view members" ON ajo_ledger FOR SELECT USING (auth.role() = 'authenticated');
-
--- Policies for Transactions
 CREATE POLICY "Own transactions view" ON transactions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Admins view treasury" ON cooperative_treasury FOR SELECT USING (is_admin());
-
--- Policies for Loans
 CREATE POLICY "Own loans view" ON loans FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Loans apply own" ON loans FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admins manage loans" ON loans FOR ALL USING (is_admin());
-
--- Policies for Savings
 CREATE POLICY "Own goals manage" ON savings_goals FOR ALL USING (auth.uid() = user_id);
-
--- Policies for Announcements
 CREATE POLICY "Announcements view all" ON announcements FOR SELECT USING (true);
 CREATE POLICY "Admins manage announcements" ON announcements FOR ALL USING (is_admin());
-
--- Policies for Withdrawals
 CREATE POLICY "Own withdrawals manage" ON withdrawal_requests FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Withdrawals request own" ON withdrawal_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admins manage withdrawals" ON withdrawal_requests FOR ALL USING (is_admin());
-
--- Policies for Referrals
 CREATE POLICY "Referrals view own" ON referral_ledger FOR SELECT USING (auth.uid() = referrer_id OR auth.uid() = referred_id);
 CREATE POLICY "Admins manage referrals" ON referral_ledger FOR ALL USING (is_admin());
-
--- Policies for Support
 CREATE POLICY "Own tickets manage" ON support_tickets FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Support tickets create own" ON support_tickets FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Admins manage tickets" ON support_tickets FOR ALL USING (is_admin());
-
--- Policies for Marketplace
 CREATE POLICY "Marketplace items view all" ON marketplace_items FOR SELECT USING (true);
 CREATE POLICY "Marketplace items manage own" ON marketplace_items FOR ALL USING (auth.uid() = seller_id);
 
@@ -432,32 +346,7 @@ CREATE POLICY "Marketplace items manage own" ON marketplace_items FOR ALL USING 
 -- 5. REALTIME SETUP
 -- ==========================================
 
--- Enable realtime for critical tables
 DROP PUBLICATION IF EXISTS supabase_realtime;
 CREATE PUBLICATION supabase_realtime FOR TABLE 
-  notifications, 
-  wallets, 
-  ajo_ledger, 
-  transactions, 
-  announcements, 
-  support_tickets, 
-  marketplace_items, 
-  withdrawal_requests, 
-  loans;
-
--- ==========================================
--- 6. STORAGE BUCKETS
--- ==========================================
-
--- Note: In Supabase, you often need to insert into storage.buckets
--- Ensure you run this if your environment allows, or do it via the dashboard.
-INSERT INTO storage.buckets (id, name, public) VALUES ('kyc-documents', 'kyc-documents', true) ON CONFLICT DO NOTHING;
-INSERT INTO storage.buckets (id, name, public) VALUES ('marketplace-images', 'marketplace-images', true) ON CONFLICT DO NOTHING;
-
--- Storage Policies
-CREATE POLICY "Public Read KYC" ON storage.objects FOR SELECT USING (bucket_id = 'kyc-documents');
-CREATE POLICY "Admin All KYC" ON storage.objects FOR ALL USING (bucket_id = 'kyc-documents' AND is_admin());
-
-CREATE POLICY "Public Read Marketplace" ON storage.objects FOR SELECT USING (bucket_id = 'marketplace-images');
-CREATE POLICY "Seller Upload Marketplace" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'marketplace-images' AND auth.role() = 'authenticated');
-CREATE POLICY "Seller Manage Marketplace" ON storage.objects FOR ALL USING (bucket_id = 'marketplace-images' AND auth.uid()::text = (storage.foldername(name))[1]);
+  notifications, wallets, ajo_ledger, transactions, announcements, 
+  support_tickets, marketplace_items, withdrawal_requests, loans;

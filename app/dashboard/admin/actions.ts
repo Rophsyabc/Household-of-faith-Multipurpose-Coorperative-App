@@ -48,7 +48,7 @@ export async function distributeDividends(percentage: number) {
     const supabase = await getSupabase();
     const adminSupabase = getAdminSupabase();
     
-    const { data: treasury } = await supabase.from('cooperative_treasury').select('*').eq('id', 1).single();
+    const { data: treasury } = await supabase.from('cooperative_treasury').select('*').eq(1).single();
     if (!treasury || treasury.total_fees_collected <= 0) return { error: 'No funds in treasury to distribute.' };
 
     const totalToDistribute = (Number(treasury.total_fees_collected) * percentage) / 100;
@@ -140,17 +140,14 @@ export async function forceAdvanceCycle(groupId: string) {
     if (!group) return { error: 'Group not found' };
     const currentCycle = group.current_cycle || 1;
     const { count: totalMembers } = await adminSupabase.from('ajo_members').select('*', { count: 'exact', head: true }).eq('group_id', groupId);
-    const { count: paidCount } = await adminSupabase.from('ajo_ledger').select('*', { count: 'exact', head: true }).eq('group_id', groupId).eq('cycle_number', currentCycle).eq('type', 'contribution');
     const members = totalMembers || 0;
-    const contributions = paidCount || 0;
     
-    // Safety check: Don't advance if no members
     if (members === 0) return { error: "Cannot advance a group with no members." };
 
     const activePosition = ((currentCycle - 1) % members) + 1;
-    const { data: winnerMember } = await adminSupabase.from('ajo_members').select('user_id, profiles(full_name)').eq('group_id', groupId).eq('position', activePosition).single();
+    const { data: winnerMember } = await adminSupabase.from('ajo_members').select('user_id').eq('group_id', groupId).eq('position', activePosition).single();
     
-    if (!winnerMember) return { error: `CRITICAL: No member found at Position ${activePosition}.` };
+    if (!winnerMember) return { error: `No member found at Position ${activePosition}.` };
     
     const payoutAmount = Number(group.contribution_amount) * members;
     const { data: wallet } = await adminSupabase.from('wallets').select('id, balance').eq('user_id', winnerMember.user_id).single();
@@ -186,30 +183,22 @@ export async function forceAdvanceCycle(groupId: string) {
 // --- 5. Withdrawal Requests Management ---
 export async function processWithdrawal(requestId: string, status: 'approved' | 'rejected', feedback?: string) {
     const adminSupabase = getAdminSupabase();
-    
-    // 1. Get Request
     const { data: request } = await adminSupabase.from('withdrawal_requests').select('*').eq('id', requestId).single();
     if (!request || request.status !== 'pending') return { error: 'Request not found or already processed.' };
 
     if (status === 'approved') {
-        // Funds were already deducted from the user's wallet when they made the request.
-        // Approval simply marks it as completed in the system.
-        
-        // Log "Disbursement" Transaction if needed, or just notify.
         await adminSupabase.from('notifications').insert({
             user_id: request.user_id,
             message: `Your withdrawal of ₦${Number(request.amount).toLocaleString()} has been approved and disbursed.`,
             type: 'info'
         });
     } else {
-        // REJECTION: Refund the held funds to the user's wallet
         const { data: wallet } = await adminSupabase.from('wallets').select('id, balance').eq('user_id', request.user_id).single();
         if (wallet) {
             await adminSupabase.from('wallets').update({ 
                 balance: Number(wallet.balance) + Number(request.amount) 
             }).eq('id', wallet.id);
 
-            // Log Refund Transaction
             await adminSupabase.from('transactions').insert({
                 user_id: request.user_id,
                 type: 'credit',
@@ -218,15 +207,13 @@ export async function processWithdrawal(requestId: string, status: 'approved' | 
             });
         }
 
-        // Notify User of Rejection
         await adminSupabase.from('notifications').insert({
             user_id: request.user_id,
-            message: `Your withdrawal request of ₦${Number(request.amount).toLocaleString()} was rejected. Held funds have been returned to your wallet. Reason: ${feedback || 'Cooperative policy.'}`,
+            message: `Your withdrawal request of ₦${Number(request.amount).toLocaleString()} was rejected. Reason: ${feedback || 'Cooperative policy.'}`,
             type: 'info'
         });
     }
 
-    // 6. Update Request Status
     const { error: updateError } = await adminSupabase.from('withdrawal_requests').update({ 
         status, 
         admin_feedback: feedback,
@@ -237,5 +224,46 @@ export async function processWithdrawal(requestId: string, status: 'approved' | 
 
     revalidatePath('/dashboard/admin');
     revalidatePath('/dashboard/wallet');
+    return { success: true };
+}
+
+// --- 6. Support Tickets Management ---
+export async function updateTicketStatus(ticketId: string, status: string) {
+    const adminSupabase = getAdminSupabase();
+    const { error } = await adminSupabase
+        .from('support_tickets')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', ticketId);
+
+    if (error) return { error: error.message };
+    revalidatePath('/dashboard/admin');
+    revalidatePath('/dashboard/support');
+    return { success: true };
+}
+
+export async function replyToTicket(ticketId: string, reply: string) {
+    const adminSupabase = getAdminSupabase();
+    const { error } = await adminSupabase
+        .from('support_tickets')
+        .update({ 
+            admin_reply: reply, 
+            status: 'resolved',
+            updated_at: new Date().toISOString() 
+        })
+        .eq('id', ticketId);
+
+    if (error) return { error: error.message };
+
+    const { data: ticket } = await adminSupabase.from('support_tickets').select('user_id, subject').eq('id', ticketId).single();
+    if (ticket) {
+        await adminSupabase.from('notifications').insert({
+            user_id: ticket.user_id,
+            message: `Admin replied to your ticket: ${ticket.subject}`,
+            type: 'info'
+        });
+    }
+
+    revalidatePath('/dashboard/admin');
+    revalidatePath('/dashboard/support');
     return { success: true };
 }

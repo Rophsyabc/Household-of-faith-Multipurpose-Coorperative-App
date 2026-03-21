@@ -7,6 +7,7 @@ import { KycList } from './kyc-list';
 import { GroupsList } from './groups-list';
 import { LoanList } from './loan-list'; 
 import { WithdrawalList } from './withdrawal-list';
+import { SupportList } from './support-list';
 import { AnnouncementManager } from './announcement-form';
 import { RealtimeAdminObserver } from './realtime-admin-observer';
 import { ShieldCheck, Activity, Zap } from 'lucide-react';
@@ -69,14 +70,20 @@ export default async function AdminPage() {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-    // 5. Treasury Balance
+    // 5. Support Tickets
+    const { data: tickets } = await supabase
+        .from('support_tickets')
+        .select('*, profiles(full_name, email)')
+        .order('created_at', { ascending: false });
+
+    // 6. Treasury Balance
     const { data: treasury } = await supabase
         .from('cooperative_treasury')
         .select('total_fees_collected')
         .eq('id', 1)
         .single();
 
-    // 6. Total Volume (Inflow)
+    // 7. Total Volume (Inflow)
     const { data: transactions } = await supabase
         .from('transactions')
         .select('amount')
@@ -121,14 +128,17 @@ export default async function AdminPage() {
                 {/* 1. Cash Outflow (Highest Priority) */}
                 <WithdrawalList requests={withdrawals} />
 
-                {/* 2. Loan Applications */}
+                {/* 2. Support Tickets */}
+                <SupportList tickets={tickets} />
+
+                {/* 3. Loan Applications */}
                 <LoanList loans={loans} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    {/* 3. KYC Verification */}
+                    {/* 4. KYC Verification */}
                     <KycList users={pendingUsers} />
 
-                    {/* 4. Cooperative Groups */}
+                    {/* 5. Cooperative Groups */}
                     <GroupsList groups={groups} />
                 </div>
             </div>
