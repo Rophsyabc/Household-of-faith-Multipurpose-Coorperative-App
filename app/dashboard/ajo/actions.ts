@@ -99,6 +99,23 @@ export async function joinAjoGroup(groupId: string, code?: string) {
     return { success: true };
 }
 
+export async function leaveGroup(groupId: string) {
+    const supabase = await getSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Unauthorized' };
+
+    const { error } = await supabase
+        .from('ajo_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', user.id);
+
+    if (error) return { error: error.message };
+    
+    revalidatePath('/dashboard/ajo');
+    redirect('/dashboard/ajo');
+}
+
 export async function contributeToCycle(groupId: string, amount: number) {
     const supabase = await getSupabase();
     const adminSupabase = getAdminSupabase(); 

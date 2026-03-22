@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'sonner';
@@ -12,7 +12,13 @@ const manrope = Manrope({
 export const metadata: Metadata = {
     title: "FaithCoop | Community Banking",
     description: "Digital rotational savings and multipurpose cooperative platform.",
-    viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
+};
+
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
 };
 
 export default function RootLayout({
