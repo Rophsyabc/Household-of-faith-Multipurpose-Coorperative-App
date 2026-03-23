@@ -11,8 +11,13 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // We REMOVE 'output: export' because Server Actions are not supported in static mode.
-  // We will use the 'Live URL' method for the APK.
+  // We ensure Server Actions are enabled (standard in Next 15)
+  // We do NOT use 'output: export' because we need the server for Ajo payouts and KYC.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
 };
 
 export default nextConfig;
