@@ -5,8 +5,8 @@ const config: CapacitorConfig = {
   appName: 'FaithCoop',
   webDir: 'public',
   server: {
-    // Replace with your actual Vercel URL
-    url: 'https://household-of-faith-cooperative-app.vercel.app',
+    // Updated with your new Vercel deployment URL
+    url: 'https://household-of-faith-multipurpose-coo-pi.vercel.app/',
     cleartext: true
   }
 };

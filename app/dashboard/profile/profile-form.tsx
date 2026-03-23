@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { User, Phone, MapPin, CheckCircle2, XCircle, Briefcase, Users, Mail, Home } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { User, Phone, MapPin, CheckCircle2, XCircle, Briefcase, Users, Mail, Home, Camera, Loader2 } from 'lucide-react';
 import { updateProfile } from './actions';
 import { Modal } from '@/app/components/Modal';
 import { SubmitButton } from './submit-button';
@@ -18,15 +18,25 @@ interface Profile {
     next_of_kin_name: string;
     next_of_kin_phone: string;
     next_of_kin_address: string;
+    live_photo_url?: string;
 }
 
 export function ProfileForm({ profile }: { profile: Profile }) {
     const [loading, setLoading] = useState(false);
+    const [preview, setPreview] = useState<string | null>(profile.live_photo_url || null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalType, setModalType] = useState<'success' | 'error'>('success');
     const [modalMessage, setModalMessage] = useState('');
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setPreview(URL.createObjectURL(file));
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -50,6 +60,34 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     return (
         <>
             <form onSubmit={handleSubmit} className="p-8 space-y-10">
+                {/* Section 0: Profile Photo */}
+                <div className="flex flex-col items-center gap-4 pb-4">
+                    <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="relative w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl overflow-hidden cursor-pointer group hover:border-cyan-500 transition-all"
+                    >
+                        {preview ? (
+                            <img src={preview} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                <User className="w-12 h-12" />
+                            </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="w-8 h-8 text-white" />
+                        </div>
+                    </div>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef}
+                        name="profile_photo" 
+                        accept="image/*" 
+                        onChange={handleImageChange}
+                        className="hidden" 
+                    />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tap to change photo</p>
+                </div>
+
                 {/* Section 1: Basic Info */}
                 <div className="space-y-6">
                     <h3 className="text-xs font-black text-cyan-600 uppercase tracking-[0.2em] border-b border-cyan-100 pb-2 flex items-center gap-2">

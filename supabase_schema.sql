@@ -408,6 +408,7 @@ CREATE PUBLICATION supabase_realtime FOR TABLE
 INSERT INTO storage.buckets (id, name, public) VALUES ('kyc-documents', 'kyc-documents', true) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('marketplace-images', 'marketplace-images', true) ON CONFLICT DO NOTHING;
 
+-- Cleanup existing policies to avoid ERROR: 42710
 DO $$
 BEGIN
     DROP POLICY IF EXISTS "Public Read KYC" ON storage.objects;
@@ -415,11 +416,22 @@ BEGIN
     DROP POLICY IF EXISTS "Public Read Marketplace" ON storage.objects;
     DROP POLICY IF EXISTS "Seller Upload Marketplace" ON storage.objects;
     DROP POLICY IF EXISTS "Seller Manage Marketplace" ON storage.objects;
+    DROP POLICY IF EXISTS "Members can upload profile photos" ON storage.objects;
+    DROP POLICY IF EXISTS "Members can upload marketplace images" ON storage.objects;
+    DROP POLICY IF EXISTS "Members can manage own uploads" ON storage.objects;
 END $$;
 
+-- 1. KYC Documents Policies
 CREATE POLICY "Public Read KYC" ON storage.objects FOR SELECT USING (bucket_id = 'kyc-documents');
 CREATE POLICY "Admin All KYC" ON storage.objects FOR ALL USING (bucket_id = 'kyc-documents' AND is_admin());
+CREATE POLICY "Members can upload profile photos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'kyc-documents' AND auth.role() = 'authenticated');
 
+-- 2. Marketplace Images Policies
 CREATE POLICY "Public Read Marketplace" ON storage.objects FOR SELECT USING (bucket_id = 'marketplace-images');
-CREATE POLICY "Seller Upload Marketplace" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'marketplace-images' AND auth.role() = 'authenticated');
-CREATE POLICY "Seller Manage Marketplace" ON storage.objects FOR ALL USING (bucket_id = 'marketplace-images' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Members can upload marketplace images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'marketplace-images' AND auth.role() = 'authenticated');
+
+-- 3. Universal Ownership Policy (Members manage their own folders in both buckets)
+CREATE POLICY "Members can manage own uploads" ON storage.objects FOR ALL USING (
+  bucket_id IN ('marketplace-images', 'kyc-documents') 
+  AND (storage.foldername(name))[1] = auth.uid()::text
+);

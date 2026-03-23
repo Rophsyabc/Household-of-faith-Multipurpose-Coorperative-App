@@ -98,6 +98,7 @@ export async function submitKyc(formData: FormData) {
 
 export async function updateProfile(formData: FormData) {
     const supabase = await getSupabase();
+    const adminSupabase = getAdminSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: 'Unauthorized' };
 
@@ -106,23 +107,47 @@ export async function updateProfile(formData: FormData) {
     const address = formData.get('address') as string;
     const occupation = formData.get('occupation') as string;
     const workAddress = formData.get('work_address') as string;
+    const profilePhoto = formData.get('profile_photo') as File;
 
-    const { error } = await supabase
-        .from('profiles')
-        .update({ 
+    try {
+        let livePhotoUrl = null;
+        if (profilePhoto && profilePhoto.size > 0) {
+            const ext = profilePhoto.name.split('.').pop();
+            const path = `avatars/${user.id}/${Date.now()}.${ext}`;
+            const { error: uploadError } = await adminSupabase.storage
+                .from('kyc-documents')
+                .upload(path, profilePhoto);
+            
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = adminSupabase.storage.from('kyc-documents').getPublicUrl(path);
+            livePhotoUrl = publicUrl;
+        }
+
+        const updateData: any = { 
             full_name: fullName,
             phone: phone,
             address: address,
             occupation: occupation,
             work_address: workAddress,
             updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+        };
 
-    if (error) return { error: error.message };
+        if (livePhotoUrl) {
+            updateData.live_photo_url = livePhotoUrl;
+        }
 
-    revalidatePath('/dashboard/profile');
-    return { success: true };
+        const { error } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', user.id);
+
+        if (error) throw error;
+
+        revalidatePath('/dashboard/profile');
+        return { success: true };
+    } catch (err: any) {
+        return { error: err.message || 'Failed to update profile' };
+    }
 }
 
 export async function addBankAccount(formData: FormData) {
