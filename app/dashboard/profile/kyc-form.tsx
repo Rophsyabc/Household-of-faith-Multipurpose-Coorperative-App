@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Phone, Shield, CheckCircle2, XCircle, Camera, Upload, Fingerprint, RefreshCw, MapPin, Briefcase, Users, Mail, User } from 'lucide-react';
+import { Phone, Shield, CheckCircle2, XCircle, Camera, Upload, Fingerprint, RefreshCw, MapPin, Briefcase, Users, Mail, User, Calendar } from 'lucide-react';
 import { submitKyc } from './actions';
 import { Modal } from '@/app/components/Modal'; 
 import { SubmitButton } from './submit-button';
@@ -10,11 +10,13 @@ import { toast } from 'sonner';
 export function KycForm({ 
     phone: initialPhone,
     email: initialEmail,
-    fullName: initialName
+    fullName: initialName,
+    status
 }: { 
     phone: string | null,
     email?: string | null,
-    fullName?: string | null
+    fullName?: string | null,
+    status?: string
 }) {
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1);
@@ -31,6 +33,7 @@ export function KycForm({
         email: initialEmail || '',
         phone: initialPhone || '',
         nin: '',
+        dateOfBirth: '',
         stateOfOrigin: '',
         lga: '',
         address: '',
@@ -148,6 +151,18 @@ export function KycForm({
 
     return (
         <div className="max-w-3xl mx-auto">
+            {status === 'failed' && (
+                <div className="mb-8 p-6 bg-red-50 border border-red-100 rounded-[2rem] flex items-center gap-4 text-red-800 animate-in zoom-in-95">
+                    <div className="p-3 bg-white rounded-xl shadow-sm">
+                        <XCircle className="w-6 h-6 text-red-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-black text-lg tracking-tight">Verification Failed</h3>
+                        <p className="text-sm opacity-80 font-medium">Your previous submission was declined. Please review your details and try again.</p>
+                    </div>
+                </div>
+            )}
+
             <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
                 {/* Stepper Header */}
                 <div className="bg-slate-900 text-white p-8">
@@ -180,7 +195,7 @@ export function KycForm({
                                 <User className="w-5 h-5 text-cyan-600" /> Identity Details
                             </h3>
                             <div className="grid md:grid-cols-2 gap-5">
-                                <div>
+                                <div className="md:col-span-2">
                                     <label className="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">Full Name</label>
                                     <input name="fullName" required value={formData.fullName} onChange={updateField} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold" placeholder="As seen on ID" />
                                 </div>
@@ -191,6 +206,13 @@ export function KycForm({
                                 <div>
                                     <label className="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">Phone Number</label>
                                     <input name="phone" required value={formData.phone} onChange={updateField} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold" placeholder="+234..." />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">Date of Birth</label>
+                                    <div className="relative">
+                                        <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <input type="date" name="dateOfBirth" required value={formData.dateOfBirth} onChange={updateField} className="w-full pl-10 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold" />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-black text-slate-400 uppercase mb-2 ml-1">NIN (11 Digits)</label>

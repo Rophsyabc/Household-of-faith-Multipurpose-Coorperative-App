@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { User, Phone, MapPin, CheckCircle2, XCircle, Briefcase, Users, Mail, Home, Camera, Loader2 } from 'lucide-react';
-import { updateProfile } from './actions';
+import { User, Phone, MapPin, CheckCircle2, XCircle, Briefcase, Users, Mail, Home, Camera, Loader2, Trash2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { updateProfile, deleteAccount } from './actions';
 import { Modal } from '@/app/components/Modal';
 import { SubmitButton } from './submit-button';
 
@@ -28,7 +28,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalType, setModalType] = useState<'success' | 'error'>('success');
+    const [modalType, setModalType] = useState<'success' | 'error' | 'delete'>('success');
     const [modalMessage, setModalMessage] = useState('');
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,10 +57,20 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         setIsModalOpen(true);
     };
 
+    const handleDeleteAccount = async () => {
+        setLoading(true);
+        const res = await deleteAccount();
+        if (res?.error) {
+            setModalType('error');
+            setModalMessage(res.error);
+            setLoading(false);
+        }
+    };
+
     return (
         <>
             <form onSubmit={handleSubmit} className="p-8 space-y-10">
-                {/* Section 0: Profile Photo */}
+                {/* Profile Photo */}
                 <div className="flex flex-col items-center gap-4 pb-4">
                     <div 
                         onClick={() => fileInputRef.current?.click()}
@@ -88,72 +98,59 @@ export function ProfileForm({ profile }: { profile: Profile }) {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tap to change photo</p>
                 </div>
 
-                {/* Section 1: Basic Info */}
-                <div className="space-y-6">
-                    <h3 className="text-xs font-black text-cyan-600 uppercase tracking-[0.2em] border-b border-cyan-100 pb-2 flex items-center gap-2">
-                        <User className="w-4 h-4" /> Personal Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Full Name</label>
-                            <input name="full_name" required defaultValue={profile.full_name} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold" />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Email (Primary)</label>
-                            <input type="email" disabled defaultValue={profile.email} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 text-sm font-bold cursor-not-allowed" />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Phone Number</label>
-                            <input name="phone" required defaultValue={profile.phone} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold" />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">State of Origin</label>
-                            <input disabled defaultValue={profile.state_of_origin} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 text-sm font-bold cursor-not-allowed" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Basic Info */}
+                    <div className="space-y-6">
+                        <h3 className="text-xs font-black text-cyan-600 uppercase tracking-[0.2em] border-b border-cyan-100 pb-2 flex items-center gap-2">
+                            <User className="w-4 h-4" /> Personal Information
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Full Name</label>
+                                <input name="full_name" required defaultValue={profile.full_name} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Phone Number</label>
+                                <input name="phone" required defaultValue={profile.phone} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Section 2: Address & Employment */}
-                <div className="space-y-6">
-                    <h3 className="text-xs font-black text-cyan-600 uppercase tracking-[0.2em] border-b border-cyan-100 pb-2 flex items-center gap-2">
-                        <Briefcase className="w-4 h-4" /> Residency & Employment
-                    </h3>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Residential Address</label>
-                            <textarea name="address" required rows={2} defaultValue={profile.address} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold resize-none" />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Employment */}
+                    <div className="space-y-6">
+                        <h3 className="text-xs font-black text-cyan-600 uppercase tracking-[0.2em] border-b border-cyan-100 pb-2 flex items-center gap-2">
+                            <Briefcase className="w-4 h-4" /> Employment
+                        </h3>
+                        <div className="space-y-4">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Occupation</label>
-                                <input name="occupation" required defaultValue={profile.occupation} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold" />
+                                <input name="occupation" required defaultValue={profile.occupation} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Work Address</label>
-                                <input name="work_address" required defaultValue={profile.work_address} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none text-sm font-bold" />
+                                <input name="work_address" required defaultValue={profile.work_address} className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-sm font-bold" />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Section 3: Next of Kin (Read Only) */}
-                <div className="space-y-6">
-                    <h3 className="text-xs font-black text-cyan-600 uppercase tracking-[0.2em] border-b border-cyan-100 pb-2 flex items-center gap-2">
-                        <Users className="w-4 h-4" /> Next of Kin (Verification Required to Change)
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">NOK Name</label>
-                            <input disabled defaultValue={profile.next_of_kin_name} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 text-sm font-bold cursor-not-allowed" />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">NOK Phone</label>
-                            <input disabled defaultValue={profile.next_of_kin_phone} className="w-full p-3 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 text-sm font-bold cursor-not-allowed" />
-                        </div>
-                    </div>
+                {/* Residential Address */}
+                <div className="space-y-4">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Residential Address</label>
+                    <textarea name="address" required rows={2} defaultValue={profile.address} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-3xl outline-none text-sm font-bold resize-none" />
                 </div>
 
-                <div className="pt-6 border-t border-slate-100 flex justify-end">
+                <div className="pt-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setModalType('delete');
+                            setIsModalOpen(true);
+                        }}
+                        className="text-red-500 font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:opacity-70 transition-opacity"
+                    >
+                        <Trash2 className="w-4 h-4" /> Terminate Membership
+                    </button>
                     <SubmitButton isLoading={loading} />
                 </div>
             </form>
@@ -161,22 +158,52 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title={modalType === 'success' ? 'Success' : 'Error'}
+                title={modalType === 'delete' ? 'Danger Zone' : modalType === 'success' ? 'Success' : 'Error'}
             >
-                <div className="text-center py-4 space-y-4">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
-                        modalType === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                    }`}>
-                        {modalType === 'success' ? <CheckCircle2 className="w-8 h-8" /> : <XCircle className="w-8 h-8" />}
+                {modalType === 'delete' ? (
+                    <div className="text-center py-6 space-y-6">
+                        <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mx-auto">
+                            <AlertTriangle className="w-10 h-10 text-red-500 animate-pulse" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Danger! Account Termination</h3>
+                            <p className="text-sm text-slate-500 font-medium leading-relaxed px-4">
+                                You are about to delete your profile and membership. This action is irreversible and all cooperative data will be lost.
+                            </p>
+                        </div>
+                        <div className="space-y-3">
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={loading}
+                                className="w-full bg-red-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-red-100 active:scale-95 transition-all flex items-center justify-center gap-2"
+                            >
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                                Delete My Profile Account
+                            </button>
+                            <button
+                                onClick={() => setIsModalOpen(false)}
+                                className="w-full py-4 text-slate-400 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                            >
+                                <ArrowLeft className="w-4 h-4" /> Go Back
+                            </button>
+                        </div>
                     </div>
-                    <p className="text-slate-600 font-medium">{modalMessage}</p>
-                    <button
-                        onClick={() => setIsModalOpen(false)}
-                        className="w-full bg-slate-900 text-white font-black py-3 rounded-2xl transition-colors cursor-pointer"
-                    >
-                        Okay, Noted
-                    </button>
-                </div>
+                ) : (
+                    <div className="text-center py-4 space-y-4">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
+                            modalType === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                            {modalType === 'success' ? <CheckCircle2 className="w-8 h-8" /> : <XCircle className="w-8 h-8" />}
+                        </div>
+                        <p className="text-slate-600 font-medium">{modalMessage}</p>
+                        <button
+                            onClick={() => setIsModalOpen(false)}
+                            className="w-full bg-slate-900 text-white font-black py-3 rounded-2xl"
+                        >
+                            Okay, Noted
+                        </button>
+                    </div>
+                )}
             </Modal>
         </>
     );

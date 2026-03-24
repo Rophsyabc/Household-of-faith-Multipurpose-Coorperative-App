@@ -32,6 +32,7 @@ CREATE TABLE profiles (
   full_name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT NOT NULL DEFAULT '',
+  date_of_birth DATE, 
   nin TEXT,
   address TEXT,
   state_of_origin TEXT,
@@ -41,7 +42,7 @@ CREATE TABLE profiles (
   next_of_kin_name TEXT,
   next_of_kin_phone TEXT,
   next_of_kin_address TEXT,
-  kyc_status TEXT DEFAULT 'unverified' CHECK (kyc_status IN ('unverified', 'pending', 'verified')),
+  kyc_status TEXT DEFAULT 'unverified' CHECK (kyc_status IN ('unverified', 'pending', 'verified', 'failed')),
   id_document_url TEXT,
   live_photo_url TEXT,
   referred_by UUID REFERENCES profiles(id),
@@ -49,7 +50,9 @@ CREATE TABLE profiles (
   is_admin BOOLEAN DEFAULT FALSE,
   is_premium BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT unique_full_name UNIQUE (full_name),
+  CONSTRAINT unique_nin UNIQUE (nin)
 );
 
 CREATE TABLE wallets (
@@ -275,6 +278,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION delete_own_account() RETURNS VOID AS $$
+BEGIN
+  DELETE FROM auth.users WHERE id = auth.uid();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 CREATE OR REPLACE FUNCTION increment_cycle(group_id_param UUID) RETURNS VOID AS $$
 BEGIN
   UPDATE ajo_groups SET current_cycle = current_cycle + 1 WHERE id = group_id_param;
@@ -292,6 +301,25 @@ BEGIN
   UPDATE cooperative_treasury SET total_fines_collected = total_fines_collected + fine_amount WHERE id = 1;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Approval Notification Automation
+CREATE OR REPLACE FUNCTION notify_on_kyc_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.kyc_status = 'verified' AND OLD.kyc_status != 'verified' THEN
+    INSERT INTO notifications (user_id, message, type)
+    VALUES (NEW.id, 'Congratulations! Your cooperative membership has been verified. You can now access all features, including withdrawals.', 'system');
+  ELSIF NEW.kyc_status = 'failed' AND OLD.kyc_status != 'failed' THEN
+    INSERT INTO notifications (user_id, message, type)
+    VALUES (NEW.id, 'Identity verification declined. Please review your profile details and resubmit your KYC documents.', 'system');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_notify_on_kyc_change
+AFTER UPDATE ON profiles
+FOR EACH ROW EXECUTE PROCEDURE notify_on_kyc_change();
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -353,7 +381,10 @@ CREATE POLICY "Own goals manage" ON savings_goals FOR ALL USING (auth.uid() = us
 CREATE POLICY "Announcements view all" ON announcements FOR SELECT USING (true);
 CREATE POLICY "Admins manage announcements" ON announcements FOR ALL USING (is_admin());
 CREATE POLICY "Own withdrawals manage" ON withdrawal_requests FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Withdrawals request own" ON withdrawal_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Withdrawals request own" ON withdrawal_requests FOR INSERT WITH CHECK (
+  auth.uid() = user_id AND 
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND kyc_status = 'verified')
+);
 CREATE POLICY "Admins manage withdrawals" ON withdrawal_requests FOR ALL USING (is_admin());
 CREATE POLICY "Referrals view own" ON referral_ledger FOR SELECT USING (auth.uid() = referrer_id OR auth.uid() = referred_id);
 CREATE POLICY "Admins manage referrals" ON referral_ledger FOR ALL USING (is_admin());
@@ -408,29 +439,21 @@ CREATE PUBLICATION supabase_realtime FOR TABLE
 INSERT INTO storage.buckets (id, name, public) VALUES ('kyc-documents', 'kyc-documents', true) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('marketplace-images', 'marketplace-images', true) ON CONFLICT DO NOTHING;
 
--- Cleanup existing policies to avoid ERROR: 42710
 DO $$
 BEGIN
     DROP POLICY IF EXISTS "Public Read KYC" ON storage.objects;
     DROP POLICY IF EXISTS "Admin All KYC" ON storage.objects;
     DROP POLICY IF EXISTS "Public Read Marketplace" ON storage.objects;
-    DROP POLICY IF EXISTS "Seller Upload Marketplace" ON storage.objects;
-    DROP POLICY IF EXISTS "Seller Manage Marketplace" ON storage.objects;
     DROP POLICY IF EXISTS "Members can upload profile photos" ON storage.objects;
     DROP POLICY IF EXISTS "Members can upload marketplace images" ON storage.objects;
     DROP POLICY IF EXISTS "Members can manage own uploads" ON storage.objects;
 END $$;
 
--- 1. KYC Documents Policies
 CREATE POLICY "Public Read KYC" ON storage.objects FOR SELECT USING (bucket_id = 'kyc-documents');
 CREATE POLICY "Admin All KYC" ON storage.objects FOR ALL USING (bucket_id = 'kyc-documents' AND is_admin());
 CREATE POLICY "Members can upload profile photos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'kyc-documents' AND auth.role() = 'authenticated');
-
--- 2. Marketplace Images Policies
 CREATE POLICY "Public Read Marketplace" ON storage.objects FOR SELECT USING (bucket_id = 'marketplace-images');
 CREATE POLICY "Members can upload marketplace images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'marketplace-images' AND auth.role() = 'authenticated');
-
--- 3. Universal Ownership Policy (Members manage their own folders in both buckets)
 CREATE POLICY "Members can manage own uploads" ON storage.objects FOR ALL USING (
   bucket_id IN ('marketplace-images', 'kyc-documents') 
   AND (storage.foldername(name))[1] = auth.uid()::text

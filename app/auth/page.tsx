@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
-import { Loader2, Eye, EyeOff, UserPlus, LogIn, Sparkles, ShieldCheck, PiggyBank, HandCoins, Users } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Sparkles, ShieldCheck, PiggyBank, HandCoins, Users, Mail, ArrowLeft, ShieldAlert, Lock } from 'lucide-react';
 
 const carouselSlides = [
     {
@@ -34,7 +34,9 @@ function AuthContent() {
     const supabase = createClient();
     
     const [isSignUp, setIsSignUp] = useState(false);
-    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [isAdminLogin, setIsAdminLogin] = useState(false);
+    const [needsVerification, setNeedsVerification] = useState(false);
+    const [verificationEmail, setVerificationEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     
@@ -55,14 +57,6 @@ function AuthContent() {
         return () => clearInterval(timer);
     }, []);
 
-    useEffect(() => {
-        const ref = searchParams.get('ref');
-        if (ref) {
-            setReferralCode(ref);
-            setIsSignUp(true); 
-        }
-    }, [searchParams]);
-
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -70,6 +64,19 @@ function AuthContent() {
 
         try {
             if (isSignUp) {
+                // 1. Check for Duplicate Account by Name
+                const { data: existingUser } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('full_name', fullName)
+                    .single();
+
+                if (existingUser) {
+                    setError('An account with this name already exists. Please Login instead.');
+                    setLoading(false);
+                    return;
+                }
+
                 let referrerId = null;
                 if (referralCode) {
                     const { data: refProfile } = await supabase
@@ -80,7 +87,7 @@ function AuthContent() {
                     if (refProfile) referrerId = refProfile.id;
                 }
 
-                const { error } = await supabase.auth.signUp({
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
@@ -88,20 +95,50 @@ function AuthContent() {
                             full_name: fullName,
                             referred_by: referrerId 
                         },
+                        emailRedirectTo: `${window.location.origin}/auth/callback`,
                     },
                 });
+
                 if (error) throw error;
-                setSuccessMsg('Account created successfully! You can now sign in.');
-                setIsSignUp(false); 
+
+                if (data.user && data.session === null) {
+                    setVerificationEmail(email);
+                    setNeedsVerification(true);
+                }
             } else {
-                const { error } = await supabase.auth.signInWithPassword({
+                const { data, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 });
-                if (error) throw error;
+
+                if (error) {
+                    if (error.message.includes('Email not confirmed')) {
+                        setVerificationEmail(email);
+                        setNeedsVerification(true);
+                        return;
+                    }
+                    throw error;
+                }
                 
-                router.push('/dashboard');
-                router.refresh();
+                if (data.user) {
+                    // 2. Strict Admin Access Control
+                    if (isAdminLogin) {
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('is_admin')
+                            .eq('id', data.user.id)
+                            .single();
+
+                        if (!profile?.is_admin) {
+                            await supabase.auth.signOut();
+                            throw new Error('Unauthorized: Admin Access Required.');
+                        }
+                        router.push('/dashboard/admin');
+                    } else {
+                        router.push('/dashboard');
+                    }
+                    router.refresh();
+                }
             }
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'An unexpected error occurred');
@@ -110,45 +147,40 @@ function AuthContent() {
         }
     };
 
+    if (needsVerification) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+                <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100 text-center space-y-8">
+                    <div className="w-24 h-24 bg-cyan-50 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner">
+                        <Mail className="w-12 h-12 text-cyan-600 animate-bounce" />
+                    </div>
+                    <div className="space-y-4">
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">Verify your Email</h2>
+                        <p className="text-slate-500 font-medium leading-relaxed">
+                            We have sent you a verification email to <span className="text-cyan-600 font-bold">{verificationEmail}</span>. Please verify it and log in.
+                        </p>
+                    </div>
+                    <button onClick={() => { setNeedsVerification(false); setIsSignUp(false); }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl transition-all shadow-xl active:scale-95">
+                        Return to Login
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
-            {/* Left Side: Carousel (Hidden on small mobile if preferred, but user asked for it above login) */}
+            {/* Left Side: Carousel */}
             <div className="md:w-1/2 bg-slate-900 flex items-center justify-center p-8 relative overflow-hidden order-last md:order-first">
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 to-transparent" />
-                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl" />
-                
                 <div className="relative z-10 max-w-sm text-center">
                     <div className="h-64 flex flex-col items-center justify-center">
                         {carouselSlides.map((slide, idx) => (
-                            <div 
-                                key={idx} 
-                                className={`transition-all duration-700 absolute inset-0 flex flex-col items-center justify-center space-y-6 ${
-                                    idx === currentSlide ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'
-                                }`}
-                            >
-                                <div className="p-6 bg-white/5 rounded-[2.5rem] backdrop-blur-md border border-white/10 shadow-2xl">
-                                    {slide.icon}
-                                </div>
-                                <div className="space-y-2">
-                                    <h2 className="text-2xl font-black text-white tracking-tight">{slide.title}</h2>
-                                    <p className="text-slate-400 text-sm font-medium leading-relaxed px-4">
-                                        {slide.description}
-                                    </p>
-                                </div>
+                            <div key={idx} className={`transition-all duration-700 absolute inset-0 flex flex-col items-center justify-center space-y-6 ${idx === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                                <div className="p-6 bg-white/5 rounded-[2.5rem] backdrop-blur-md border border-white/10">{slide.icon}</div>
+                                <h2 className="text-2xl font-black text-white">{slide.title}</h2>
+                                <p className="text-slate-400 text-sm font-medium">{slide.description}</p>
                             </div>
-                        ))}
-                    </div>
-                    
-                    {/* Indicators */}
-                    <div className="flex gap-2 justify-center mt-8">
-                        {carouselSlides.map((_, idx) => (
-                            <button 
-                                key={idx} 
-                                onClick={() => setCurrentSlide(idx)}
-                                className={`h-1.5 rounded-full transition-all duration-300 ${
-                                    idx === currentSlide ? 'w-8 bg-cyan-500' : 'w-2 bg-slate-700'
-                                }`}
-                            />
                         ))}
                     </div>
                 </div>
@@ -156,123 +188,49 @@ function AuthContent() {
 
             {/* Right Side: Auth Form */}
             <div className="md:w-1/2 flex items-center justify-center p-4">
-                <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 border border-slate-100 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-50 rounded-full -mr-16 -mt-16 blur-3xl opacity-50" />
-                    
-                    <div className="text-center mb-8 relative z-10">
+                <div className={`w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 border ${isAdminLogin ? 'border-amber-200' : 'border-slate-100'} relative`}>
+                    <div className="text-center mb-8">
                         <h1 className="text-3xl font-black text-slate-900 tracking-tighter">Household of Faith</h1>
-                        <p className="text-slate-500 mt-2 font-medium">
-                            {isSignUp ? 'Join the Cooperative' : 'Welcome back, Member'}
+                        <p className={`font-black text-[10px] uppercase tracking-[0.3em] mt-2 ${isAdminLogin ? 'text-amber-600' : 'text-slate-500'}`}>
+                            {isAdminLogin ? 'Admin Portal Secure Login' : isSignUp ? 'Join the Cooperative' : 'Member Access'}
                         </p>
                     </div>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100 animate-in fade-in zoom-in-95">
-                            {error}
+                        <div className="mb-6 p-4 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100 flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4" /> {error}
                         </div>
                     )}
 
-                    {successMsg && (
-                        <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                            <div className="text-green-600 mt-0.5">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                </svg>
-                            </div>
-                            <div className="text-xs text-green-800 font-bold">
-                                <p className="uppercase tracking-widest mb-1 text-[10px]">Success</p>
-                                <p className="font-medium text-sm">{successMsg}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    <form onSubmit={handleAuth} className="space-y-5 relative z-10">
-                        {isSignUp && (
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Full Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none transition-all text-sm font-bold"
-                                    placeholder="Enter your full name"
-                                />
+                    <form onSubmit={handleAuth} className="space-y-5">
+                        {isSignUp && !isAdminLogin && (
+                            <div className="animate-in fade-in">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Full Profile Name</label>
+                                <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold" placeholder="Legal Full Name" />
                             </div>
                         )}
-
                         <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Email Address</label>
-                            <input
-                                type="email"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none transition-all text-sm font-bold"
-                                placeholder="name@example.com"
-                            />
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Email</label>
+                            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold" placeholder="name@example.com" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Password</label>
+                            <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold" placeholder="••••••••" />
                         </div>
 
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Secure Password</label>
-                            <div className="relative">
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    required
-                                    minLength={6}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none transition-all text-sm font-bold pr-12"
-                                    placeholder="••••••••"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-cyan-600 focus:outline-none"
-                                >
-                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                </button>
-                            </div>
-                        </div>
-
-                        {isSignUp && (
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-500">
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Referral Code (Optional)</label>
-                                <div className="relative">
-                                    <Sparkles className="absolute left-3 top-4 w-4 h-4 text-cyan-500" />
-                                    <input
-                                        type="text"
-                                        value={referralCode}
-                                        onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                                        className="w-full pl-10 p-4 bg-cyan-50/30 border border-cyan-100 rounded-2xl focus:ring-2 focus:ring-cyan-500 outline-none transition-all text-sm font-black tracking-widest text-cyan-700"
-                                        placeholder="REFERRAL CODE"
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-slate-900 hover:bg-black text-white font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl shadow-slate-200 active:scale-95 disabled:opacity-70 mt-4"
-                        >
-                            {loading ? (
-                                <Loader2 className="w-6 h-6 animate-spin" />
-                            ) : (
-                                isSignUp ? 'Create Account' : 'Sign In'
-                            )}
+                        <button type="submit" disabled={loading} className={`w-full font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95 ${isAdminLogin ? 'bg-amber-600 hover:bg-amber-700' : 'bg-slate-900 hover:bg-black'} text-white`}>
+                            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : isAdminLogin ? <Lock className="w-5 h-5" /> : 'Enter Application'}
                         </button>
                     </form>
 
-                    <div className="mt-8 text-center">
-                        <p className="text-slate-500 text-sm font-medium">
-                            {isSignUp ? 'Already have a membership?' : "New to the Cooperative?"}
-                        </p>
-                        <button
-                            onClick={() => setIsSignUp(!isSignUp)}
-                            className="mt-2 text-cyan-600 font-black uppercase tracking-widest text-[10px] hover:text-cyan-700 underline underline-offset-4"
-                        >
-                            {isSignUp ? 'Back to Sign In' : 'Register Now'}
+                    <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-4 text-center">
+                        {!isAdminLogin && (
+                            <button onClick={() => setIsSignUp(!isSignUp)} className="text-cyan-600 font-black uppercase tracking-widest text-[10px] hover:underline">
+                                {isSignUp ? 'Back to Sign In' : 'Create a New Account'}
+                            </button>
+                        )}
+                        <button onClick={() => { setIsAdminLogin(!isAdminLogin); setIsSignUp(false); }} className="text-slate-400 font-black uppercase tracking-widest text-[10px] hover:text-slate-900 transition-colors">
+                            {isAdminLogin ? 'Switch to Member Login' : 'Login as Admin'}
                         </button>
                     </div>
                 </div>
@@ -282,9 +240,5 @@ function AuthContent() {
 }
 
 export default function AuthPage() {
-    return (
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-10 h-10 animate-spin text-cyan-600" /></div>}>
-            <AuthContent />
-        </Suspense>
-    );
+    return <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-10 h-10 animate-spin text-cyan-600" /></div>}><AuthContent /></Suspense>;
 }

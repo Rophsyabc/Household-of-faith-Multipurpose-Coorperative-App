@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
+import { redirect } from 'next/navigation';
 
 async function getSupabase() {
     const cookieStore = await cookies();
@@ -32,6 +33,7 @@ export async function submitKyc(formData: FormData) {
     const email = formData.get('email') as string;
     const phone = formData.get('phone') as string;
     const nin = formData.get('nin') as string;
+    const dateOfBirth = formData.get('dateOfBirth') as string; // Added
     const stateOfOrigin = formData.get('stateOfOrigin') as string;
     const lga = formData.get('lga') as string;
     const address = formData.get('address') as string;
@@ -71,6 +73,7 @@ export async function submitKyc(formData: FormData) {
                 email: email,
                 phone: phone,
                 nin: nin,
+                date_of_birth: dateOfBirth, // Added
                 address: address,
                 state_of_origin: stateOfOrigin,
                 lga: lga,
@@ -148,6 +151,23 @@ export async function updateProfile(formData: FormData) {
     } catch (err: any) {
         return { error: err.message || 'Failed to update profile' };
     }
+}
+
+export async function deleteAccount() {
+    const supabase = await getSupabase();
+    const adminSupabase = getAdminSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) return { error: 'Unauthorized' };
+
+    // Use admin client to delete from auth.users (requires a trigger or direct call if allowed)
+    // Since we have delete_own_account function in SQL:
+    const { error } = await supabase.rpc('delete_own_account');
+
+    if (error) return { error: error.message };
+
+    await supabase.auth.signOut();
+    redirect('/auth');
 }
 
 export async function addBankAccount(formData: FormData) {
