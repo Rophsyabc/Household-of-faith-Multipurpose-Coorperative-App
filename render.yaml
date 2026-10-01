@@ -1,0 +1,33 @@
+# Render Web Service Configuration
+# https://render.com/docs/reference/render-yaml
+#
+# Public variables (NEXT_PUBLIC_*) are committed here as placeholders.
+# Private variables MUST be set via the Render Dashboard Environment Variables UI.
+
+apiVersion: render.com/v1
+kind: WebService
+name: household-of-faith
+region: oregon
+branch: main
+env: node
+buildCommand: npm run build
+startCommand: npm start
+plan: starter
+autoDeploy: true
+
+envVars:
+  # ---- PUBLIC (safe to commit) ----
+  - key: NEXT_PUBLIC_SUPABASE_URL
+    value: https://mbwclwjysxlyabrrecqk.supabase.co
+  - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id2Nsd2p5c3hseWFicnJlY3FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDQ1MzQsImV4cCI6MjA4OTMyMDUzNH0.Hy01y80O5jvBFzXNUbMbYyazD68TphYdXo4sKZjw9do
+  - key: NEXT_PUBLIC_ADMIN_EMAIL
+    value: soardev.nath@gmail.com
+  - key: NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+    value: pk_live_a1a2c28de9dc2f45e314bb9082fa748381e1aa1e
+
+  # ---- PRIVATE (must be set in Render Dashboard) ----
+  - key: SUPABASE_SERVICE_ROLE_KEY
+  - key: RESEND_API_KEY
+  - key: SUPABASE_WEBHOOK_SECRET
+  - key: PAYSTACK_SECRET_KEY
