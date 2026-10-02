@@ -23,8 +23,24 @@ function getAdminSupabase() {
     );
 }
 
+async function verifyAdmin(supabase: any): Promise<{ isAdmin: boolean; error?: string }> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { isAdmin: false, error: 'Unauthorized' };
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+    return { isAdmin: profile?.is_admin === true };
+}
+
 export async function postAnnouncement(formData: FormData) {
     const supabase = await getSupabase();
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
+
     const title = formData.get('title') as string;
     const content = formData.get('content') as string;
     const isPriority = formData.get('is_priority') === 'on';
@@ -36,7 +52,12 @@ export async function postAnnouncement(formData: FormData) {
 }
 
 export async function processKyc(userId: string, status: 'verified' | 'failed') {
+    const supabase = await getSupabase();
     const adminSupabase = getAdminSupabase();
+
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
+
     const { error } = await adminSupabase.from('profiles').update({ kyc_status: status }).eq('id', userId);
     
     if (error) return { error: error.message };
@@ -57,6 +78,10 @@ export async function processKyc(userId: string, status: 'verified' | 'failed') 
 }
 
 export async function processWithdrawal(requestId: string, status: 'approved' | 'rejected', feedback?: string) {
+    const supabase = await getSupabase();
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
+
     const adminSupabase = getAdminSupabase();
     const { data: request } = await adminSupabase.from('withdrawal_requests').select('*').eq('id', requestId).single();
     if (!request || request.status !== 'pending') return { error: 'Invalid request' };
@@ -74,6 +99,10 @@ export async function processWithdrawal(requestId: string, status: 'approved' | 
 }
 
 export async function distributeDividends(percentage: number) {
+    const supabase = await getSupabase();
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
+
     const adminSupabase = getAdminSupabase();
     const { data: treasury } = await adminSupabase.from('cooperative_treasury').select('total_fees_collected').eq('id', 1).single();
     const pool = Number(treasury?.total_fees_collected || 0) * (percentage / 100);
@@ -92,6 +121,10 @@ export async function distributeDividends(percentage: number) {
 }
 
 export async function forceAdvanceCycle(groupId: string) {
+    const supabase = await getSupabase();
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
+
     const adminSupabase = getAdminSupabase();
     const { data: group } = await adminSupabase.from('ajo_groups').select('*').eq('id', groupId).single();
     if (!group) return { error: 'Group not found' };
@@ -112,8 +145,8 @@ export async function forceAdvanceCycle(groupId: string) {
 
 export async function replyToTicket(ticketId: string, reply: string) {
     const supabase = await getSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: 'Unauthorized' };
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
     const { error } = await supabase.from('support_tickets').update({ admin_reply: reply }).eq('id', ticketId);
     if (error) return { error: error.message };
     revalidatePath('/dashboard/admin');
@@ -122,8 +155,8 @@ export async function replyToTicket(ticketId: string, reply: string) {
 
 export async function updateTicketStatus(ticketId: string, status: string) {
     const supabase = await getSupabase();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: 'Unauthorized' };
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
     const { error } = await supabase.from('support_tickets').update({ status }).eq('id', ticketId);
     if (error) return { error: error.message };
     revalidatePath('/dashboard/admin');

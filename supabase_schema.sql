@@ -362,8 +362,13 @@ ALTER TABLE referral_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE marketplace_items ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Profiles viewable" ON profiles FOR SELECT USING (true);
-CREATE POLICY "Profiles update own" ON profiles FOR UPDATE USING (auth.uid() = id);
+-- Least-privilege profile access:
+--   - Each user can read only their own profile (auth.uid() = id).
+--   - Admins can read any profile (server-side verified via is_admin()).
+--   - Sensitive PII (NIN, phone, address, next-of-kin, KYC) must never be
+--     exposed to other users. This prevents cross-user data leakage.
+CREATE POLICY "Profiles own" ON profiles FOR SELECT USING (auth.uid() = id OR is_admin());
+CREATE POLICY "Profiles update own" ON profiles FOR UPDATE USING (auth.uid() = id OR is_admin());
 CREATE POLICY "Admins manage profiles" ON profiles FOR ALL USING (is_admin());
 CREATE POLICY "Wallets view own" ON wallets FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Admins view wallets" ON wallets FOR SELECT USING (is_admin());

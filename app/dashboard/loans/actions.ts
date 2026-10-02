@@ -20,8 +20,21 @@ async function getSupabase() {
 function getAdminSupabase() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY! 
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+}
+
+async function verifyAdmin(supabase: any): Promise<{ isAdmin: boolean; error?: string }> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { isAdmin: false, error: 'Unauthorized' };
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+
+    return { isAdmin: profile?.is_admin === true };
 }
 
 export async function applyForLoan(formData: FormData) {
@@ -123,7 +136,12 @@ export async function repayLoan(loanId: string, amount: number) {
 }
 
 export async function approveLoan(loanId: string) {
+    const supabase = await getSupabase();
     const adminSupabase = getAdminSupabase();
+
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
+
     const { data: loan } = await adminSupabase.from('loans').select('*').eq('id', loanId).single();
     if (!loan || loan.status !== 'pending') return { error: 'Loan not found or already processed.' };
     
@@ -154,6 +172,11 @@ export async function approveLoan(loanId: string) {
 }
 
 export async function rejectLoan(loanId: string, feedback: string) {
+    const supabase = await getSupabase();
+
+    const { isAdmin, error: adminError } = await verifyAdmin(supabase);
+    if (!isAdmin) return { error: adminError || 'Admin access required' };
+
     const adminSupabase = getAdminSupabase();
     const { error } = await adminSupabase.from('loans').update({ status: 'rejected', admin_feedback: feedback }).eq('id', loanId);
     if (error) return { error: error.message };

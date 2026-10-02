@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { processTransaction } from './actions';
+import { processTransaction, verifyPaystackAndCredit } from './actions';
 import { Loader2, Plus, Minus, XCircle, CheckCircle2, Landmark, AlertCircle } from 'lucide-react';
-import { Modal } from '@/app/components/Modal'; 
+import { Modal } from '@/app/components/Modal';
 import { usePaystackPayment } from 'react-paystack';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -14,6 +14,10 @@ interface BankAccount {
     account_number: string;
 }
 
+function generateReference(): string {
+    return `DEP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+}
+
 export function TransactionForm({ type, email, bankAccounts = [] }: { type: 'credit' | 'debit', email: string, bankAccounts?: BankAccount[] }) {
     const [isOpen, setIsOpen] = useState(false);
     const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -21,23 +25,21 @@ export function TransactionForm({ type, email, bankAccounts = [] }: { type: 'cre
     const [amount, setAmount] = useState('');
     const [selectedBankId, setSelectedBankId] = useState('');
     const [loading, setLoading] = useState(false);
-    
     const isCredit = type === 'credit';
 
-    // Paystack Configuration
-    const config = {
-        reference: (new Date()).getTime().toString(),
+    const paystackReference = generateReference();
+    const initializePayment = usePaystackPayment({
+        reference: paystackReference,
         email: email,
-        amount: parseFloat(amount) * 100, // Paystack works in kobo
+        amount: parseFloat(amount) * 100,
         publicKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
-    };
+        onClose: onClose,
+    });
 
-    const initializePayment = usePaystackPayment(config);
-
-    const onSuccess = async (reference: any) => {
+    const onSuccess = async (reference: string) => {
         setLoading(true);
         const val = parseFloat(amount);
-        const result = await processTransaction(val, 'credit');
+        const result = await verifyPaystackAndCredit(reference);
         setLoading(false);
 
         if (result.error) {
@@ -57,7 +59,7 @@ export function TransactionForm({ type, email, bankAccounts = [] }: { type: 'cre
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const val = parseFloat(amount);
-        
+
         if (isNaN(val) || val <= 0) {
             toast.error('Please enter a valid amount.');
             return;
@@ -100,9 +102,9 @@ export function TransactionForm({ type, email, bankAccounts = [] }: { type: 'cre
             <button
                 onClick={() => setIsOpen(true)}
                 className={`flex items-center justify-center py-4 rounded-2xl font-black cursor-pointer text-sm transition-all active:scale-95 ${
-                isCredit 
-                    ? 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-lg shadow-cyan-200' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                    isCredit
+                        ? 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-lg shadow-cyan-200'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
                 }`}
             >
                 {isCredit ? <Plus className="w-4 h-4 mr-2" /> : <Minus className="w-4 h-4 mr-2" />}
@@ -142,7 +144,7 @@ export function TransactionForm({ type, email, bankAccounts = [] }: { type: 'cre
                                 {bankAccounts.length > 0 ? (
                                     <div className="relative">
                                         <Landmark className="absolute left-4 top-4 w-5 h-5 text-slate-400" />
-                                        <select 
+                                        <select
                                             required
                                             value={selectedBankId}
                                             onChange={(e) => setSelectedBankId(e.target.value)}
@@ -171,9 +173,9 @@ export function TransactionForm({ type, email, bankAccounts = [] }: { type: 'cre
 
                     <div className="p-4 bg-cyan-50 rounded-2xl border border-cyan-100">
                         <p className="text-[10px] text-cyan-700 font-bold leading-relaxed">
-                        {isCredit 
-                            ? 'Secure real-time deposit via Paystack. Funds are credited instantly after successful payment.' 
-                            : 'Withdrawal requests are processed within 24 hours. Ensure your bank details are accurate.'}
+                            {isCredit
+                                ? 'Secure real-time deposit via Paystack. Funds are credited after we verify your payment.'
+                                : 'Withdrawal requests are processed within 24 hours. Ensure your bank details are accurate.'}
                         </p>
                     </div>
 
@@ -201,7 +203,7 @@ export function TransactionForm({ type, email, bankAccounts = [] }: { type: 'cre
                     }`}>
                         {status === 'success' ? <CheckCircle2 className="w-12 h-12" /> : <XCircle className="w-12 h-12" />}
                     </div>
-                
+
                     <p className="text-sm text-slate-500 font-medium leading-relaxed px-4">{message}</p>
 
                     <button

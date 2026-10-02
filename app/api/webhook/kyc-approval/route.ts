@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
         // Trigger only when status changes to 'verified'
         if (type === 'UPDATE' && record.kyc_status === 'verified' && old_record.kyc_status !== 'verified') {
-            
+
             await resend.emails.send({
                 from: 'Household of Faith <onboarding@resend.dev>', // Replace with your domain once verified
                 to: record.email,
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
                             <li>Wallet Withdrawals</li>
                             <li>Savings Goals</li>
                         </ul>
-                        <a href="https://your-app-url.vercel.app/dashboard" style="display: inline-block; background: #0f172a; color: white; padding: 12px 25px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 20px;">Go to Dashboard</a>
+                        <a href="https://household-of-faith-multipurpose.onrender.com/dashboard" style="display: inline-block; background: #0f172a; color: white; padding: 12px 25px; border-radius: 10px; text-decoration: none; font-weight: bold; margin-top: 20px;">Go to Dashboard</a>
                         <hr style="margin-top: 30px; border: 0; border-top: 1px solid #eee;" />
                         <p style="font-size: 12px; color: #666;">This is an automated message from Household of Faith Cooperative.</p>
                     </div>

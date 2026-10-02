@@ -35,6 +35,9 @@ export async function createSavingsGoal(formData: FormData) {
     const deadline = formData.get('deadline') as string;
     const isLocked = formData.get('is_locked') === 'on';
 
+    if (isNaN(targetAmount) || targetAmount <= 0) return { error: 'Target amount must be greater than zero.' };
+    if (isNaN(amountPerPeriod) || amountPerPeriod < 0) return { error: 'Amount per period must be non-negative.' };
+
     const { error } = await supabase.from('savings_goals').insert({
         user_id: user.id,
         title,
@@ -57,6 +60,8 @@ export async function addFundsToGoal(goalId: string, amount: number) {
     const supabase = await getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: 'Unauthorized' };
+
+    if (isNaN(amount) || amount <= 0) return { error: 'Amount must be greater than zero.' };
 
     // 1. Check Wallet
     const { data: wallet } = await supabase.from('wallets').select('*').eq('user_id', user.id).single();

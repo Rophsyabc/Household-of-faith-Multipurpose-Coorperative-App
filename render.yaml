@@ -21,8 +21,11 @@ envVars:
     value: https://mbwclwjysxlyabrrecqk.supabase.co
   - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
     value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id2Nsd2p5c3hseWFicnJlY3FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDQ1MzQsImV4cCI6MjA4OTMyMDUzNH0.Hy01y80O5jvBFzXNUbMbYyazD68TphYdXo4sKZjw9do
-  - key: NEXT_PUBLIC_ADMIN_EMAIL
-    value: soardev.nath@gmail.com
+  # Admin email — NOT a security boundary (client-exposed).
+# Admin status is enforced server-side via the `is_admin`
+# boolean on the profiles table.
+# - key: NEXT_PUBLIC_ADMIN_EMAIL
+#   value: soardev.nath@gmail.com
   - key: NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
     value: pk_live_a1a2c28de9dc2f45e314bb9082fa748381e1aa1e
 

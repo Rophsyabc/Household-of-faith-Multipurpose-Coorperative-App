@@ -35,15 +35,15 @@ export default async function DashboardLayout({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect('/auth');
 
-    const isAdmin = user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-
     const { data: rawProfile } = await supabase
         .from('profiles')
-        .select('*')
+        .select('full_name, kyc_status, is_admin')
         .eq('id', user.id)
         .single();
-        
-    const profile = rawProfile as Profile;
+
+    const profile = rawProfile as (Profile & { is_admin?: boolean }) | null;
+
+    const isAdmin = profile?.is_admin === true;
 
     const signOut = async () => {
         'use server';
@@ -77,7 +77,7 @@ export default async function DashboardLayout({
             <aside className="w-72 bg-white border-r border-slate-200 hidden md:flex flex-col">
                 <div className="p-8">
                     <h1 className="text-2xl font-black text-slate-900 tracking-tighter">
-                        Faith<span className="text-cyan-600">Coop</span>
+                        Household of Faith
                     </h1>
                 </div>
 
@@ -139,9 +139,9 @@ export default async function DashboardLayout({
 
             {/* --- MOBILE HEADER --- */}
             <header className="md:hidden bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-                <h1 className="text-xl font-black text-slate-900 tracking-tighter">
-                    Faith<span className="text-cyan-600">Coop</span>
-                </h1>
+<h1 className="text-xl font-black text-slate-900 tracking-tighter">
+                        Household of Faith
+                    </h1>
                 <div className="flex items-center gap-4">
                     <Link href="/dashboard/notifications" className="relative p-2 bg-slate-50 rounded-xl">
                         <Bell className="w-5 h-5 text-slate-600" />

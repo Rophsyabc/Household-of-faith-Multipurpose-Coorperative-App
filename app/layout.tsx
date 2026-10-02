@@ -10,15 +10,13 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-    title: "FaithCoop | Community Banking",
-    description: "Digital rotational savings and multipurpose cooperative platform.",
+    title: "Household of Faith | Multipurpose Cooperative",
+    description: "Digital cooperative banking platform for savings, loans, Ajo (Esusu), and investment.",
 };
 
 export const viewport: Viewport = {
     width: "device-width",
     initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
 };
 
 export default function RootLayout({
