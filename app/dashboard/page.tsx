@@ -25,7 +25,12 @@ interface Announcement {
     created_at: string;
 }
 
-export default async function DashboardPage() {
+import { redirect } from 'next/navigation';
+
+export default async function DashboardPage(props: {
+    searchParams?: Promise<{ view?: string }>;
+}) {
+    const searchParams = props.searchParams ? await props.searchParams : {};
     const cookieStore = await cookies();
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,6 +39,23 @@ export default async function DashboardPage() {
     );
 
     const { data: { user } } = await supabase.auth.getUser();
+
+    // Database is_admin check (authoritative source of truth)
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user?.id)
+        .single();
+
+    const adminEmailEnv = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim();
+    const passesEmailCheck = !adminEmailEnv
+        || user?.email?.toLowerCase() === adminEmailEnv.toLowerCase();
+    const isAdmin = Boolean(profile?.is_admin && passesEmailCheck);
+
+    // If an admin navigates to /dashboard without ?view=member, forward directly to the Admin Command Center
+    if (isAdmin && searchParams?.view !== 'member') {
+        redirect('/dashboard/admin');
+    }
 
     const [
         { data: rawWallet },
@@ -57,6 +79,23 @@ export default async function DashboardPage() {
 
     return (
         <div className="space-y-10 pb-24">
+            {isAdmin && (
+                <div className="bg-slate-900 text-white px-6 py-4 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl border border-slate-800">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-cyan-600 flex items-center justify-center text-white shrink-0">
+                            <ShieldCheck className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <p className="text-[11px] font-black uppercase tracking-wider text-cyan-400">Administrator Preview</p>
+                            <p className="text-xs text-slate-300 font-medium">You are previewing the standard member dashboard view.</p>
+                        </div>
+                    </div>
+                    <Link href="/dashboard/admin" className="text-xs font-black bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-2.5 rounded-full transition shadow-md flex items-center gap-2 shrink-0">
+                        <span>Back to Admin Console</span>
+                        <ArrowRight className="w-4 h-4" />
+                    </Link>
+                </div>
+            )}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 
 import { StatsCards } from './stats-cards';
 import { KycList } from './kyc-list';
@@ -113,6 +114,12 @@ export default async function AdminPage() {
                     <p className="text-slate-500 font-medium mt-1">Global oversight of the cooperative's financial and social health.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <Link 
+                        href="/dashboard?view=member" 
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-2xl transition border border-slate-200"
+                    >
+                        Preview Member View
+                    </Link>
                     <div className="bg-green-50 text-green-600 px-4 py-2 rounded-2xl border border-green-100 flex items-center gap-2 shadow-sm">
                         <Activity className="w-4 h-4 animate-pulse" />
                         <span className="text-[10px] font-black uppercase tracking-widest">Live Engine</span>

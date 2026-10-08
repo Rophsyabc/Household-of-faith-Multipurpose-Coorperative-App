@@ -33,7 +33,29 @@ const MENU_GROUPS = [
     }
 ];
 
-export default function MenuPage() {
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
+
+export default async function MenuPage() {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { cookies: { get(name: string) { return cookieStore.get(name)?.value; } } }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user?.id)
+        .single();
+
+    const adminEmailEnv = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim();
+    const passesEmailCheck = !adminEmailEnv
+        || user?.email?.toLowerCase() === adminEmailEnv.toLowerCase();
+    const isAdmin = Boolean(profile?.is_admin && passesEmailCheck);
+
     return (
         <div className="max-w-2xl mx-auto space-y-8 pb-24">
             <div className="flex items-center justify-between px-2">
@@ -44,6 +66,30 @@ export default function MenuPage() {
             </div>
 
             <div className="space-y-8">
+                {isAdmin && (
+                    <div className="space-y-4">
+                        <h2 className="text-[10px] font-black text-cyan-600 uppercase tracking-[0.2em] ml-4">Administrator Control</h2>
+                        <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-[2.5rem] border border-slate-700 shadow-xl overflow-hidden p-1">
+                            <Link 
+                                href="/dashboard/admin"
+                                className="flex items-center justify-between p-5 hover:bg-slate-800/60 transition-all rounded-[2.3rem] group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-cyan-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-900/50">
+                                        <ShieldCheck className="w-6 h-6" />
+                                    </div>
+                                    <div>
+                                        <span className="font-black text-white block text-sm">Admin Command Center</span>
+                                        <span className="text-[11px] text-cyan-300 font-medium">Manage members, loans, KYC & treasury</span>
+                                    </div>
+                                </div>
+                                <span className="bg-cyan-500 text-slate-900 font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-widest shadow-md">
+                                    ROOT
+                                </span>
+                            </Link>
+                        </div>
+                    </div>
+                )}
                 {MENU_GROUPS.map((group, idx) => (
                     <div key={idx} className="space-y-4">
                         <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-4">{group.title}</h2>

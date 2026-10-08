@@ -25,6 +25,8 @@ envVars:
     value: https://household-of-faith-multipurpose.onrender.com
   - key: NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
     value: pk_test_76967ae2533ea2515cb620b2e7affd35e8f94d5a
+  - key: NEXT_PUBLIC_ADMIN_EMAIL
+    value: soardev.nath@gmail.com
 
   # ---- PRIVATE (must be set in Render Dashboard) ----
   - key: SUPABASE_SERVICE_ROLE_KEY

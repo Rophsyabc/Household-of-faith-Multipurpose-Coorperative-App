@@ -112,7 +112,22 @@ function AuthContent() {
                 }
 
                 if (data.user) {
-                    router.push('/dashboard');
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('is_admin')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    const adminEmailEnv = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim();
+                    const passesEmailCheck = !adminEmailEnv
+                        || data.user.email?.toLowerCase() === adminEmailEnv.toLowerCase();
+                    const isAdmin = Boolean(profile?.is_admin && passesEmailCheck);
+
+                    if (isAdmin) {
+                        router.push('/dashboard/admin');
+                    } else {
+                        router.push('/dashboard');
+                    }
                     router.refresh();
                 }
             }

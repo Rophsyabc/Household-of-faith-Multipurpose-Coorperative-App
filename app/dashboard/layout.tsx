@@ -43,11 +43,10 @@ export default async function DashboardLayout({
 
     const profile = rawProfile as (Profile & { is_admin?: boolean }) | null;
 
-    const isDesignatedAdmin = Boolean(
-        process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
-        user.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL.toLowerCase()
-    );
-    const isAdmin = profile?.is_admin === true && isDesignatedAdmin;
+    const adminEmailEnv = process.env.NEXT_PUBLIC_ADMIN_EMAIL?.trim();
+    const passesEmailCheck = !adminEmailEnv
+        || user.email?.toLowerCase() === adminEmailEnv.toLowerCase();
+    const isAdmin = Boolean(profile?.is_admin && passesEmailCheck);
 
     const signOut = async () => {
         'use server';
@@ -146,7 +145,16 @@ export default async function DashboardLayout({
 <h1 className="text-xl font-black text-slate-900 tracking-tighter">
                         Household of Faith
                     </h1>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    {isAdmin && (
+                        <Link 
+                            href="/dashboard/admin" 
+                            className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-xl flex items-center gap-1.5 text-xs font-black border border-cyan-200 shadow-sm"
+                        >
+                            <ShieldCheck className="w-4 h-4 text-cyan-600" />
+                            <span>Admin</span>
+                        </Link>
+                    )}
                     <Link href="/dashboard/notifications" className="relative p-2 bg-slate-50 rounded-xl">
                         <Bell className="w-5 h-5 text-slate-600" />
                         {notificationCount ? (
