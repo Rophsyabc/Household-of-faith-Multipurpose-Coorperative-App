@@ -393,18 +393,16 @@ export default async function SavingsPage() {
                         </div>
                         <h2 className="text-3xl font-black tracking-tight leading-tight">Mastering the Cooperative Savings Culture</h2>
                         <p className="text-slate-400 font-medium leading-relaxed">
-                            Savings are the foundation of your cooperative leverage. By maintaining active goals, you increase your 
-                            <span className="text-white"> internal credit rating</span>, allowing you to access larger loans and 
-                            higher dividend yields during annual distributions.
+                            Savings are the foundation of cooperative participation. Maintaining active target goals builds your financial discipline and establishes your standing for cooperative loan applications and annual surplus allocations.
                         </p>
                         <div className="flex flex-wrap gap-4 pt-4">
                             <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
                                 <CheckCircle2 className="w-4 h-4 text-green-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">3x Borrowing Power</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Disciplined Savings</span>
                             </div>
                             <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
                                 <CheckCircle2 className="w-4 h-4 text-green-400" />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Priority Disbursements</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Target Milestones</span>
                             </div>
                         </div>
                     </div>

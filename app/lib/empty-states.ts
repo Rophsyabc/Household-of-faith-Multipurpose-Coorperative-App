@@ -42,7 +42,7 @@ const EMPTY_STATE_DATA = {
     loans: {
         icon: CreditCard,
         title: 'Apply for a Loan',
-        description: 'Access 3x your savings with competitive loan terms. Build your credit rating with timely repayments.',
+        description: 'Access cooperative credit facilities backed by your savings and cooperative guarantors.',
         action: <Link href="/dashboard/loans/apply" className="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-full font-black transition-all">
             Apply Now
             <ArrowRight className="w-4 h-4" />
@@ -51,7 +51,7 @@ const EMPTY_STATE_DATA = {
     dividends: {
         icon: TrendingUp,
         title: 'No Dividends Yet',
-        description: 'Dividends are distributed quarterly to all active members. You can start earning next quarter.',
+        description: 'Dividends are declared by the cooperative administration following fiscal surplus reviews.',
         action: <Link href="/dashboard/members" className="inline-flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-full font-black transition-all">
             View Members
             <ArrowRight className="w-4 h-4" />

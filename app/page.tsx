@@ -141,9 +141,9 @@ export default function LandingPage() {
                             <div className="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center mb-4 text-cyan-700">
                                 <Users className="w-6 h-6" />
                             </div>
-                            <h3 className="font-black text-lg text-slate-900 mb-2">Ajo / Rotational Savings</h3>
+                            <h3 className="font-black text-lg text-slate-900 mb-2">Ajo / Rotational Thrift</h3>
                             <p className="text-slate-600 text-sm leading-relaxed">
-                                Structured community thrift groups with transparent cycle schedules, automated allocation, and coordinated disbursements.
+                                Structured community thrift groups where members contribute periodically to a collective pool and receive scheduled cycle disbursements in member order.
                             </p>
                         </div>
 
@@ -169,25 +169,25 @@ export default function LandingPage() {
                             </p>
                         </div>
 
-                        {/* 5. Dividends */}
+                        {/* 5. Member Directory */}
                         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-cyan-300 transition-all">
                             <div className="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center mb-4 text-cyan-700">
-                                <TrendingUp className="w-6 h-6" />
+                                <Users className="w-6 h-6" />
                             </div>
-                            <h3 className="font-black text-lg text-slate-900 mb-2">Dividends</h3>
+                            <h3 className="font-black text-lg text-slate-900 mb-2">Member Directory</h3>
                             <p className="text-slate-600 text-sm leading-relaxed">
-                                Annual cooperative surplus distributions allocated to qualified members in accordance with cooperative financial performance and AGM resolutions.
+                                Connect with fellow verified cooperative members, explore member profiles, and foster community collaboration.
                             </p>
                         </div>
 
-                        {/* 6. Education Fund */}
+                        {/* 6. Dedicated Goals */}
                         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-cyan-300 transition-all">
                             <div className="w-12 h-12 rounded-xl bg-cyan-50 flex items-center justify-center mb-4 text-cyan-700">
                                 <GraduationCap className="w-6 h-6" />
                             </div>
-                            <h3 className="font-black text-lg text-slate-900 mb-2">Education Fund</h3>
+                            <h3 className="font-black text-lg text-slate-900 mb-2">Goal Categories</h3>
                             <p className="text-slate-600 text-sm leading-relaxed">
-                                Dedicated savings sub-accounts established to prepare systematically for tuition fees, academic milestones, and vocational development.
+                                Allocate targeted savings toward specific life goals including education tuition, business capital, and emergency reserves.
                             </p>
                         </div>
 

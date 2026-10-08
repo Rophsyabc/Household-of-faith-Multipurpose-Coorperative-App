@@ -76,7 +76,7 @@ export default async function ProfilePage() {
                     </div>
                     <div>
                         <h3 className="font-black text-xl tracking-tight">Identity Audit in Progress</h3>
-                        <p className="text-sm opacity-80 font-medium leading-relaxed mt-1">Our compliance team is verifying your NIN and biometrics. Payouts are restricted during this 24-hour window.</p>
+                        <p className="text-sm opacity-80 font-medium leading-relaxed mt-1">Our compliance team is reviewing your submitted identity details. Payouts are restricted while verification is pending.</p>
                     </div>
                 </div>
             )}
