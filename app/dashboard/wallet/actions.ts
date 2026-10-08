@@ -82,19 +82,8 @@ export async function processTransaction(amount: number, type: 'credit' | 'debit
         revalidatePath('/dashboard/wallet');
         return { success: true, message: 'Withdrawal request submitted. Funds held for disbursement.' };
     } else {
-        const newBalance = Number(wallet.balance) + amount;
-        const { error: updateError } = await supabase.from('wallets').update({ balance: newBalance }).eq('id', wallet.id);
-        if (updateError) return { error: updateError.message };
-
-        await supabase.from('transactions').insert({
-            user_id: user.id,
-            type: 'credit',
-            amount: amount,
-            description: 'Wallet Deposit',
-        });
-
-        revalidatePath('/dashboard/wallet');
-        return { success: true };
+        // Direct credits are disallowed. Deposits MUST be verified via Paystack callback or webhook.
+        return { error: 'Direct unverified wallet funding is prohibited. Please use the Paystack payment flow.' };
     }
 }
 

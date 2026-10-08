@@ -28,7 +28,7 @@ export default async function ReferralsPage() {
     const totalEarned = referrals?.filter(r => r.status === 'paid').reduce((acc, curr) => acc + Number(curr.bonus_amount), 0) || 0;
     const pendingEarned = referrals?.filter(r => r.status === 'pending').reduce((acc, curr) => acc + Number(curr.bonus_amount), 0) || 0;
 
-    const referralLink = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://faithcoop.app'}/auth?ref=${profile?.referral_code}`;
+    const referralLink = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://household-of-faith-multipurpose.onrender.com'}/auth?ref=${profile?.referral_code}`;
 
     return (
         <div className="max-w-4xl mx-auto space-y-10 pb-24">

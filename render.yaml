@@ -18,16 +18,13 @@ autoDeploy: true
 envVars:
   # ---- PUBLIC (safe to commit) ----
   - key: NEXT_PUBLIC_SUPABASE_URL
-    value: https://mbwclwjysxlyabrrecqk.supabase.co
+    value: https://dvukrpdkplmuwxqruyxy.supabase.co
   - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1id2Nsd2p5c3hseWFicnJlY3FrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDQ1MzQsImV4cCI6MjA4OTMyMDUzNH0.Hy01y80O5jvBFzXNUbMbYyazD68TphYdXo4sKZjw9do
-  # Admin email — NOT a security boundary (client-exposed).
-# Admin status is enforced server-side via the `is_admin`
-# boolean on the profiles table.
-# - key: NEXT_PUBLIC_ADMIN_EMAIL
-#   value: soardev.nath@gmail.com
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2dWtycGRrcGxtdXd4cXJ1eXh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4Nzg1NjEsImV4cCI6MjEwNjQ1NDU2MX0.EHYxv-HyzZ5kHty1ZXMP0BMfatHD7yyOQ6Q6aJQhqH8
+  - key: NEXT_PUBLIC_SITE_URL
+    value: https://household-of-faith-multipurpose.onrender.com
   - key: NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
-    value: pk_live_a1a2c28de9dc2f45e314bb9082fa748381e1aa1e
+    value: pk_test_76967ae2533ea2515cb620b2e7affd35e8f94d5a
 
   # ---- PRIVATE (must be set in Render Dashboard) ----
   - key: SUPABASE_SERVICE_ROLE_KEY

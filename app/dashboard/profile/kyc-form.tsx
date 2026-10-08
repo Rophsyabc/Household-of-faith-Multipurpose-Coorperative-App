@@ -104,6 +104,19 @@ export function KycForm({
         }
     };
 
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error("Photo is too large. Max 5MB.");
+                return;
+            }
+            setLivePhotoBlob(file);
+            setPhotoPreview(URL.createObjectURL(file));
+            stopCamera();
+        }
+    };
+
     const handleIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -303,24 +316,94 @@ export function KycForm({
                             </h3>
                             
                             <div className="grid md:grid-cols-2 gap-6">
-                                {/* Live Capture */}
+                                {/* Photo Verification (Camera vs Gallery) */}
                                 <div className="space-y-3">
-                                    <label className="block text-xs font-black text-slate-400 uppercase">Live Face Capture</label>
-                                    <div className="relative aspect-square bg-slate-100 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden shadow-inner flex flex-col items-center justify-center">
+                                    <label className="block text-xs font-black text-slate-400 uppercase">Passport / Face Verification</label>
+                                    
+                                    {/* Hidden Inputs */}
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        capture="user" 
+                                        onChange={handlePhotoUpload} 
+                                        className="hidden" 
+                                        id="kyc-take-photo-camera" 
+                                    />
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        onChange={handlePhotoUpload} 
+                                        className="hidden" 
+                                        id="kyc-upload-photo-gallery" 
+                                    />
+
+                                    <div className="relative aspect-square bg-slate-100 rounded-3xl border-2 border-dashed border-slate-200 overflow-hidden shadow-inner flex flex-col items-center justify-center p-4">
                                         {isCameraOpen ? (
                                             <>
-                                                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-                                                <button onClick={capturePhoto} className="absolute bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-white rounded-full border-4 border-cyan-500 flex items-center justify-center">
-                                                    <div className="w-8 h-8 bg-cyan-500 rounded-full animate-pulse" />
-                                                </button>
+                                                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1] rounded-2xl" />
+                                                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={capturePhoto} 
+                                                        className="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-full font-black text-xs shadow-lg flex items-center gap-2"
+                                                    >
+                                                        <Camera className="w-4 h-4" /> Snap Photo
+                                                    </button>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={stopCamera} 
+                                                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-full font-bold text-xs"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
                                             </>
                                         ) : photoPreview ? (
                                             <div className="relative w-full h-full">
-                                                <img src={photoPreview} alt="Captured" className="w-full h-full object-cover" />
-                                                <button onClick={startCamera} className="absolute bottom-2 right-2 p-2 bg-white/90 rounded-full shadow-lg text-cyan-600"><RefreshCw className="w-4 h-4" /></button>
+                                                <img src={photoPreview} alt="Captured" className="w-full h-full object-cover rounded-2xl" />
+                                                <div className="absolute bottom-3 right-3 flex gap-2">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={startCamera} 
+                                                        title="Retake with camera"
+                                                        className="p-2.5 bg-white/95 rounded-full shadow-lg text-cyan-700 hover:bg-white"
+                                                    >
+                                                        <Camera className="w-4 h-4" />
+                                                    </button>
+                                                    <label 
+                                                        htmlFor="kyc-upload-photo-gallery"
+                                                        title="Upload from gallery"
+                                                        className="p-2.5 bg-white/95 rounded-full shadow-lg text-slate-700 hover:bg-white cursor-pointer"
+                                                    >
+                                                        <Upload className="w-4 h-4" />
+                                                    </label>
+                                                </div>
                                             </div>
                                         ) : (
-                                            <button onClick={startCamera} className="bg-cyan-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-lg">Launch Camera</button>
+                                            <div className="text-center space-y-4">
+                                                <div className="w-14 h-14 rounded-2xl bg-cyan-50 flex items-center justify-center mx-auto text-cyan-700">
+                                                    <Camera className="w-7 h-7" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-xs font-black text-slate-800">Provide Your Photo</p>
+                                                    <p className="text-[10px] text-slate-400 font-medium max-w-[200px]">Clear passport photo or direct live capture</p>
+                                                </div>
+                                                <div className="flex flex-col gap-2 pt-1 w-full max-w-[220px] mx-auto">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={startCamera} 
+                                                        className="w-full py-2.5 px-4 bg-cyan-700 hover:bg-cyan-800 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2"
+                                                    >
+                                                        <Camera className="w-3.5 h-3.5" /> Take a Photo
+                                                    </button>
+                                                    <label 
+                                                        htmlFor="kyc-upload-photo-gallery"
+                                                        className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-black cursor-pointer flex items-center justify-center gap-2 transition-colors"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5" /> Upload Photo
+                                                    </label>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

@@ -84,8 +84,8 @@ export default function MenuPage() {
                     <LogOut className="w-5 h-5" />
                     Sign Out Safely
                 </button>
-                <p className="text-center text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-8">
-                    FaithCoop App Version 1.0.4 • 2024
+                <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-8">
+                    Household of Faith Multipurpose Cooperative v2.0
                 </p>
             </div>
         </div>

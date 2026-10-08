@@ -6,7 +6,16 @@ export async function POST(req: Request) {
         const resend = new Resend(process.env.RESEND_API_KEY);
 
         const authHeader = req.headers.get('Authorization');
-        if (authHeader !== process.env.SUPABASE_WEBHOOK_SECRET) {
+        const xWebhookSecret = req.headers.get('x-webhook-secret');
+        const expectedSecret = process.env.SUPABASE_WEBHOOK_SECRET;
+
+        const isAuthorized = expectedSecret && (
+            authHeader === expectedSecret ||
+            authHeader === `Bearer ${expectedSecret}` ||
+            xWebhookSecret === expectedSecret
+        );
+
+        if (!isAuthorized) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 

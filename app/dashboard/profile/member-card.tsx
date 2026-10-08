@@ -18,7 +18,7 @@ export function MemberCard({ name, status, id }: { name: string, status: string,
                             <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center">
                                 <Landmark className="w-5 h-5 text-white" />
                             </div>
-                            <span className="font-black text-sm tracking-tighter uppercase">FaithCoop</span>
+                            <span className="font-black text-xs tracking-tight uppercase">Household of Faith</span>
                         </div>
                         {status === 'verified' && (
                             <div className="flex items-center gap-1.5 bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30 backdrop-blur-md">
