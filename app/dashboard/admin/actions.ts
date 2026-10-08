@@ -33,12 +33,14 @@ async function verifyAdmin(supabase: any): Promise<{ isAdmin: boolean; error?: s
         .eq('id', user.id)
         .single();
 
-    const isDesignatedAdmin = Boolean(
-        process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
-        user.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL.toLowerCase()
-    );
+    const adminEmailEnv = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
-    return { isAdmin: profile?.is_admin === true && isDesignatedAdmin };
+    // If NEXT_PUBLIC_ADMIN_EMAIL is configured, require email match as a second factor.
+    // If env var is absent, rely on DB is_admin flag only to prevent lockout.
+    const passesEmailCheck = !adminEmailEnv
+        || user.email?.toLowerCase() === adminEmailEnv.toLowerCase();
+
+    return { isAdmin: profile?.is_admin === true && passesEmailCheck };
 }
 
 export async function postAnnouncement(formData: FormData) {

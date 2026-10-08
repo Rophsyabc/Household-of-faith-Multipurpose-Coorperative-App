@@ -32,12 +32,14 @@ export default async function AdminPage() {
         .eq('id', user.id)
         .single();
 
-    const isDesignatedAdmin = Boolean(
-        process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
-        user.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL.toLowerCase()
-    );
+    const adminEmailEnv = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
 
-    if (!profile?.is_admin || !isDesignatedAdmin) {
+    // If NEXT_PUBLIC_ADMIN_EMAIL is set, require an email match as a second factor.
+    // If it is NOT set in the environment, fall back to DB-only check to avoid lockout.
+    const passesEmailCheck = !adminEmailEnv
+        || user.email?.toLowerCase() === adminEmailEnv.toLowerCase();
+
+    if (!profile?.is_admin || !passesEmailCheck) {
         redirect('/dashboard');
     }
 
