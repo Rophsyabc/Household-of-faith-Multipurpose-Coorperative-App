@@ -43,7 +43,11 @@ export default async function DashboardLayout({
 
     const profile = rawProfile as (Profile & { is_admin?: boolean }) | null;
 
-    const isAdmin = profile?.is_admin === true;
+    const isDesignatedAdmin = Boolean(
+        process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
+        user.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL.toLowerCase()
+    );
+    const isAdmin = profile?.is_admin === true && isDesignatedAdmin;
 
     const signOut = async () => {
         'use server';

@@ -32,7 +32,12 @@ export default async function AdminPage() {
         .eq('id', user.id)
         .single();
 
-    if (!profile?.is_admin) {
+    const isDesignatedAdmin = Boolean(
+        process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
+        user.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL.toLowerCase()
+    );
+
+    if (!profile?.is_admin || !isDesignatedAdmin) {
         redirect('/dashboard');
     }
 

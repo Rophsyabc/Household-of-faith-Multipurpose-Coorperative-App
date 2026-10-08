@@ -34,7 +34,12 @@ async function verifyAdmin(supabase: any): Promise<{ isAdmin: boolean; error?: s
         .eq('id', user.id)
         .single();
 
-    return { isAdmin: profile?.is_admin === true };
+    const isDesignatedAdmin = Boolean(
+        process.env.NEXT_PUBLIC_ADMIN_EMAIL &&
+        user.email?.toLowerCase() === process.env.NEXT_PUBLIC_ADMIN_EMAIL.toLowerCase()
+    );
+
+    return { isAdmin: profile?.is_admin === true && isDesignatedAdmin };
 }
 
 export async function applyForLoan(formData: FormData) {
